@@ -1,0 +1,44 @@
+# 환경 변수 및 보안
+.env
+.env.local
+.env.*.local
+
+# Python 캐시 및 가상환경
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+env/
+
+# 데이터베이스 및 로그
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# 저장소(storage) 내 브라우저 프로필 및 임시 데이터 제외
+storage/browser_profiles/
+storage/*.db
+storage/*.sqlite3
+storage/*.log
+
+# storage/ 폴더 내 카테고리 고정 썸네일 이미지 파일 추적 포함 (허용 예외)
+storage/*
+!storage/*.png
+!storage/*.jpg
+!storage/*.jpeg
+!storage/*.webp
+!storage/goverment24.png
+!storage/law.png
+
+# IDE 및 OS 임시 파일
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,39 @@
+tistory:
+  # Verify every locator against the target blog before enabling publication.
+  identity:
+    strategy: text
+    value: "lmh 의 일상"
+  title:
+    strategy: placeholder
+    value: "제목을 입력하세요"
+  html_mode:
+    strategy: css
+    value: "#editor-mode-layer-btn-open"
+  html_editor:
+    strategy: css
+    value: "textarea"
+  thumbnail_input:
+    strategy: css
+    value: "input[type='file']"
+  category_menu:
+    strategy: text
+    value: "카테고리"
+  tag_input:
+    strategy: css
+    value: "input[placeholder*='태그']"
+  visibility_menu:
+    strategy: text
+    value: "공개 설정"
+  private_option:
+    strategy: text
+    value: "비공개"
+  publish_button:
+    strategy: role
+    role: button
+    name: "완료"
+  private_marker:
+    strategy: text
+    value: "비공개"
+  recent_post_link:
+    strategy: css
+    value: "a"

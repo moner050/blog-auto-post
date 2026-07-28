@@ -1,0 +1,1 @@
+"""Safe Tistory publishing adapters."""

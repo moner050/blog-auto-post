@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>티스토리 자동화 관리자 대시보드</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="brand-icon">🚀</span>
+                <span class="brand-name">AutoPost Admin</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" id="nav-dashboard">
+                    <span class="nav-icon">📊</span> 대시보드
+                </a>
+                <a href="#generate-section" class="nav-item">
+                    <span class="nav-icon">🤖</span> AI 포스팅 생성
+                </a>
+                <a href="#articles-section" class="nav-item">
+                    <span class="nav-icon">📝</span> 포스팅 관리
+                </a>
+            </nav>
+            <div class="system-status">
+                <div class="status-indicator online"></div>
+                <span id="system-blog-name">블로그 정보 연결 중...</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>티스토리 포스팅 현황 및 컨트롤 타워</h1>
+                    <p class="subtitle">Perplexity Sonar LLM 포스팅 자동 생성 및 Playwright 발행 관리</p>
+                </div>
+                <div class="header-actions">
+                    <button id="btn-run-worker" class="btn btn-primary btn-glow">
+                        <span class="btn-icon">⚡</span> 발행 워커 1회 즉시 실행
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Overview Cards -->
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon purple">📚</div>
+                    <div class="stat-info">
+                        <span class="stat-label">전체 포스팅</span>
+                        <h3 id="stat-total" class="stat-value">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">✅</div>
+                    <div class="stat-info">
+                        <span class="stat-label">발행 완료</span>
+                        <h3 id="stat-verified" class="stat-value">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon yellow">⏳</div>
+                    <div class="stat-info">
+                        <span class="stat-label">발행 대기 중</span>
+                        <h3 id="stat-pending" class="stat-value">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon red">⚠️</div>
+                    <div class="stat-info">
+                        <span class="stat-label">실패 / 격리</span>
+                        <h3 id="stat-failed" class="stat-value">0</h3>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick AI Post Generator Section -->
+            <section id="generate-section" class="card-section">
+                <div class="section-header">
+                    <h2>🤖 AI 포스팅 생성 (Perplexity Sonar)</h2>
+                    <span class="badge badge-ai" id="badge-model">Sonar Model</span>
+                </div>
+                <form id="form-generate-article" class="generator-form">
+                    <div class="form-group flex-2">
+                        <label for="input-topic">포스팅 주제 (Topic)</label>
+                        <input type="text" id="input-topic" class="form-input" placeholder="예: 주민등록등본 PDF 저장 방법, 카카오톡 사진 일괄 다운로드" required>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="input-category">카테고리 (선택)</label>
+                        <input type="text" id="input-category" class="form-input" placeholder="기본 카테고리 적용">
+                    </div>
+                    <div class="form-group flex-auto">
+                        <label>&nbsp;</label>
+                        <button type="submit" id="btn-submit-generate" class="btn btn-accent">
+                            <span class="btn-icon">✨</span> 포스팅 생성 & 큐 등록
+                        </button>
+                    </div>
+                </form>
+                <div id="generation-message" class="alert-message hidden"></div>
+            </section>
+
+            <!-- Articles & Queue Table Section -->
+            <section id="articles-section" class="card-section">
+                <div class="section-header">
+                    <h2>📝 포스팅 목록 및 발행 상태</h2>
+                    <button id="btn-refresh-list" class="btn btn-secondary btn-sm">
+                        🔄 새로고침
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>제목</th>
+                                <th>카테고리</th>
+                                <th>상태</th>
+                                <th>작성 일자</th>
+                                <th>발행 링크</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-articles-body">
+                            <tr>
+                                <td colspan="7" class="text-center">데이터를 불러오는 중입니다...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Article Preview Modal -->
+    <div id="modal-preview" class="modal hidden">
+        <div class="modal-overlay" id="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">포스팅 HTML 본문 미리보기</h3>
+                <button id="btn-close-modal" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="meta-tags-container" id="modal-tags"></div>
+                <div class="html-preview-frame" id="modal-html-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
