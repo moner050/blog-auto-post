@@ -29,6 +29,13 @@ def test_category_thumbnail_mapping():
     life_thumb = get_thumbnail_for_category("생활꿀팁")
     assert life_thumb == Path("storage/lifestyle.png")
 
-    # 6. 미지정 또는 기타 카테고리 (기본 썸네일 반환)
+    # 6. 여행꿀팁 / 여행
+    travel_thumb = get_thumbnail_for_category("여행꿀팁")
+    assert travel_thumb == Path("storage/travel.png")
+
+    travel_alt = get_thumbnail_for_category("여행")
+    assert travel_alt == Path("storage/travel.png")
+
+    # 7. 미지정 또는 기타 카테고리 (기본 썸네일 반환)
     unknown_thumb = get_thumbnail_for_category("기타카테고리")
     assert unknown_thumb == Path("storage/default_thumbnail.png")

@@ -102,6 +102,45 @@ python -m pytest
 
 ---
 
+## 🚨 트러블슈팅: IDE 모듈 임포트 및 컴파일 에러 해결 방법
+
+VS Code나 PyCharm 등 IDE에서 `pydantic_settings`, `playwright`, `alembic`, `uvicorn` 구문에 밑줄(Red Squiggles)이 표시되며 임포트/컴파일 에러가 발생할 때 해결 방법입니다.
+
+### 📌 에러 발생 원인
+1. **가상환경 미생성 또는 미활성화**: 필수 패키지들이 설치된 독립된 Python 가상환경이 없거나 활성화되지 않음.
+2. **의존성 패키지 미설치**: `pyproject.toml`에 등록된 패키지가 현재 Python 환경에 로드되지 않음.
+3. **IDE Python Interpreter 미선택**: VS Code 등의 에디터 언어 서버(Pylance / Pyright)가 프로젝트 `.venv` 가상환경 경로를 바라보고 있지 않음.
+
+### 🛠️ 해결 방법
+
+#### 1단계: 파이썬 가상환경 생성 및 활성화
+```bash
+# 프로젝트 루트 경로에서 가상환경 생성
+python -m venv .venv
+
+# 가상환경 활성화 (Windows PowerShell)
+.\.venv\Scripts\Activate.ps1
+
+# (Linux / macOS 사용자)
+source .venv/bin/activate
+```
+
+#### 2단계: 의존성 패키지 및 Playwright 설치
+```bash
+# 모든 의존성 라이브러리 설치 (MySQL, Test 옵션 포함)
+pip install -e .[mysql,test]
+
+# Playwright 자동화용 브라우저 설치 (최초 1회)
+playwright install
+```
+
+#### 3단계: IDE Python 인터프리터 경로 지정 (VS Code 기준)
+1. `Ctrl + Shift + P` (macOS: `Cmd + Shift + P`) 단축키 입력
+2. **`Python: Select Interpreter`** 항목 선택
+3. 목록에서 **`.\.venv\Scripts\python.exe`** (Enter interpreter path -> `.\.venv\Scripts\python.exe` 입력 가능) 지정
+
+---
+
 ## 📁 프로젝트 주요 구조
 
 ```text

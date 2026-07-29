@@ -2,17 +2,30 @@
 .env
 .env.local
 .env.*.local
+*.pem
+*.key
 
-# Python 캐시 및 가상환경
+# Python 캐시 및 패키지 빌드 산출물
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+
+# 테스트 및 커버리지
 .pytest_cache/
 .coverage
 htmlcov/
-venv/
+.coverage.*
+
+# 가상환경
 .venv/
+venv/
 env/
+ENV/
 
 # 데이터베이스 및 로그
 *.db
@@ -20,20 +33,15 @@ env/
 *.sqlite3
 *.log
 
-# 저장소(storage) 내 브라우저 프로필 및 임시 데이터 제외
-storage/browser_profiles/
-storage/*.db
-storage/*.sqlite3
-storage/*.log
-
-# storage/ 폴더 내 카테고리 고정 썸네일 이미지 파일 추적 포함 (허용 예외)
+# 저장소 (storage) 내 동적 데이터 제외 및 필수 이미지 유지
 storage/*
-!storage/*.png
-!storage/*.jpg
-!storage/*.jpeg
-!storage/*.webp
+!storage/default_thumbnail.png
+!storage/goverment-policy.png
 !storage/goverment24.png
+!storage/hometax.png
 !storage/law.png
+!storage/lifestyle.png
+!storage/travel.png
 
 # IDE 및 OS 임시 파일
 .idea/
