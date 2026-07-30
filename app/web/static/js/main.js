@@ -277,15 +277,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        topicCandidateList.innerHTML = candidates.map(candidate => {
+        const candidatesById = new Map(candidates.map(candidate => [String(candidate.id), candidate]));
+        const rows = candidates.map(candidate => {
             const statusLabel = candidate.status === 'DRAFT_CREATED' ? '글 생성 완료' : candidate.status;
             const sources = (candidate.sources || []).map(source => {
                 const url = safeExternalUrl(source.url);
                 if (!url) return '';
                 return `<a class="topic-source" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || url)}</a>`;
-            }).filter(Boolean).join('');
+            }).filter(Boolean).join('<br>') || '-';
             const error = candidate.error_message
-                ? `<p class="topic-error">⚠️ ${escapeHtml(candidate.error_message)}</p>`
+                ? `<div class="topic-error">⚠️ ${escapeHtml(candidate.error_message)}</div>`
                 : '';
             let action = '';
             if (candidate.status === 'DRAFT_CREATED' && candidate.article_id) {
@@ -297,25 +298,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 action = `<button class="btn btn-accent btn-sm btn-generate-draft" data-candidate-id="${candidate.id}">${label}</button>`;
             }
             return `
-                <article class="topic-candidate-card">
-                    <div class="topic-candidate-heading">
-                        <span class="badge badge-ai">${escapeHtml(candidate.category)}</span>
-                        <span class="topic-candidate-status">${escapeHtml(statusLabel)}</span>
-                    </div>
-                    <h3>${escapeHtml(candidate.topic)}</h3>
-                    <p>${escapeHtml(candidate.reason)}</p>
-                    ${error}
-                    <div class="topic-sources">${sources}</div>
-                    <div class="topic-candidate-actions">${action}</div>
-                </article>
+                <tr>
+                    <td><span class="badge badge-ai">${escapeHtml(candidate.category)}</span></td>
+                    <td class="topic-candidate-topic">${escapeHtml(candidate.topic)}</td>
+                    <td class="topic-candidate-reason">${escapeHtml(candidate.reason)}${error}</td>
+                    <td class="topic-sources">${sources}</td>
+                    <td><span class="topic-candidate-status">${escapeHtml(statusLabel)}</span></td>
+                    <td>
+                        <div class="topic-candidate-actions">
+                            ${action}
+                            <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}"${candidate.status === 'GENERATING' ? ' disabled' : ''}>🗑️ 삭제</button>
+                        </div>
+                    </td>
+                </tr>
             `;
         }).join('');
+        topicCandidateList.innerHTML = `
+            <div class="topic-candidate-table-scroll">
+                <table class="topic-candidate-table">
+                    <thead>
+                        <tr>
+                            <th>카테고리</th>
+                            <th>주제</th>
+                            <th>추천 이유</th>
+                            <th>출처</th>
+                            <th>상태</th>
+                            <th>작업</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        `;
 
         document.querySelectorAll('.btn-generate-draft').forEach(button => {
             button.addEventListener('click', event => generateDraft(event.currentTarget.dataset.candidateId));
         });
         document.querySelectorAll('.btn-open-draft').forEach(button => {
             button.addEventListener('click', event => openPreviewModal(event.currentTarget.dataset.articleId));
+        });
+        document.querySelectorAll('.btn-delete-candidate').forEach(button => {
+            button.addEventListener('click', event => {
+                const candidate = candidatesById.get(event.currentTarget.dataset.candidateId);
+                if (candidate) deleteTopicCandidate(candidate, event.currentTarget);
+            });
         });
     }
 
@@ -369,6 +395,21 @@ document.addEventListener('DOMContentLoaded', () => {
             await fetchTopicCandidates();
         } finally {
             draftGenerationInProgress = false;
+        }
+    }
+
+    async function deleteTopicCandidate(candidate, button) {
+        if (!window.confirm(`'${candidate.topic}' 후보를 삭제할까요?`)) return;
+        button.disabled = true;
+        try {
+            const res = await fetch(`/api/topic-candidates/${candidate.id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '후보 삭제 실패');
+            showTopicCandidateMessage('✅ 주제 후보를 삭제했습니다.', 'success');
+            await Promise.all([fetchTopicCandidates(), fetchStats()]);
+        } catch (err) {
+            button.disabled = false;
+            showTopicCandidateMessage(`⚠️ 후보 삭제 오류: ${err.message}`, 'error');
         }
     }
 

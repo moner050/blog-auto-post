@@ -464,36 +464,67 @@ body {
 
 /* Topic candidates */
 .topic-candidate-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1rem;
+    overflow: hidden;
 }
 
-.topic-candidate-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
+.topic-candidate-table-scroll {
+    overflow-x: auto;
     border: 1px solid var(--border-color);
     border-radius: 0.65rem;
+}
+
+.topic-candidate-table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+}
+
+.topic-candidate-table th,
+.topic-candidate-table td {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: top;
+}
+
+.topic-candidate-table th {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
     background-color: rgba(15, 23, 42, 0.35);
 }
 
-.topic-candidate-heading,
+.topic-candidate-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.topic-candidate-table tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
 .topic-candidate-actions,
 .topic-sources {
     display: flex;
-    align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
 }
 
-.topic-candidate-card h3 {
-    font-size: 1rem;
+.topic-candidate-actions {
+    min-width: 235px;
+}
+
+.topic-candidate-topic {
+    min-width: 220px;
+    color: var(--text-primary);
+    font-weight: 600;
     line-height: 1.45;
 }
 
-.topic-candidate-card p,
+.topic-candidate-reason {
+    min-width: 250px;
+}
+
 .empty-candidates,
 .topic-candidate-status {
     color: var(--text-secondary);
@@ -509,6 +540,7 @@ body {
     color: var(--accent-blue);
     font-size: 0.8rem;
     text-decoration: none;
+    white-space: nowrap;
 }
 
 .topic-source:hover {
