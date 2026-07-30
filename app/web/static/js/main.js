@@ -291,12 +291,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const candidatesById = new Map(candidates.map(candidate => [String(candidate.id), candidate]));
         const rows = candidates.map(candidate => {
             const statusLabel = candidate.status === 'DRAFT_CREATED' ? '글 생성 완료' : candidate.status;
+            let action = '';
+            if (candidate.status === 'DRAFT_CREATED' && candidate.article_id) {
+                action = `
+                    <button class="btn btn-secondary btn-sm btn-open-draft" data-article-id="${candidate.article_id}">👁️ 글 보기</button>
+                    <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}">🗑️ 삭제</button>
+                `;
+            } else if (candidate.status === 'GENERATING') {
+                action = `
+                    <button class="btn btn-secondary btn-sm" disabled>⏳ 글 생성 중</button>
+                    <button class="btn btn-danger btn-sm" disabled>🗑️ 삭제</button>
+                `;
+            } else {
+                const label = candidate.status === 'FAILED' ? '🔄 다시 글 생성' : '✍️ 이 주제로 글 생성';
+                action = `
+                    <button class="btn btn-accent btn-sm btn-generate-draft" data-candidate-id="${candidate.id}">${label}</button>
+                    <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}">🗑️ 삭제</button>
+                `;
+            }
             return `
                 <tr class="topic-candidate-row" data-candidate-id="${candidate.id}" tabindex="0" role="button" aria-label="${escapeHtml(candidate.topic)} 상세 보기">
                     <td><span class="badge badge-ai">${escapeHtml(candidate.category)}</span></td>
                     <td class="topic-candidate-topic" title="${escapeHtml(candidate.topic)}">${escapeHtml(candidate.topic)}</td>
                     <td class="topic-candidate-reason" title="${escapeHtml(candidate.reason)}">${escapeHtml(candidate.reason)}</td>
                     <td><span class="topic-candidate-status">${escapeHtml(statusLabel)}</span></td>
+                    <td class="topic-candidate-action-cell"><div class="topic-candidate-actions">${action}</div></td>
                 </tr>
             `;
         }).join('');
@@ -309,6 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <th>주제</th>
                             <th>추천 이유</th>
                             <th>상태</th>
+                            <th>작업</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -327,6 +347,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     event.preventDefault();
                     openCandidate();
                 }
+            });
+        });
+        document.querySelectorAll('.topic-candidate-table .btn-generate-draft').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                generateDraft(event.currentTarget.dataset.candidateId);
+            });
+        });
+        document.querySelectorAll('.topic-candidate-table .btn-open-draft').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                openPreviewModal(event.currentTarget.dataset.articleId);
+            });
+        });
+        document.querySelectorAll('.topic-candidate-table .btn-delete-candidate').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                const candidate = candidatesById.get(event.currentTarget.dataset.candidateId);
+                if (candidate) deleteTopicCandidate(candidate, event.currentTarget);
             });
         });
     }
