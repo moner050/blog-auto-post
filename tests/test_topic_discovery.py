@@ -62,6 +62,8 @@ def test_discoverer_keeps_valid_unique_candidates_and_maps_citations() -> None:
     ]
     assert client.completion_response.call_args.kwargs["search_recency_filter"] == "month"
     assert client.completion_response.call_args.kwargs["search_language_filter"] == ["ko"]
+    assert "Hometax tax filing" in client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "Government24 public services" in client.completion_response.call_args.kwargs["messages"][1]["content"]
 
 
 def test_discoverer_rejects_empty_valid_result() -> None:
@@ -75,6 +77,29 @@ def test_discoverer_rejects_empty_valid_result() -> None:
                 "citation_indices": [],
             }
         ]
+    )
+
+    with pytest.raises(TopicDiscoveryError, match="no valid"):
+        TopicDiscoverer(client).discover()
+
+
+def test_discoverer_rejects_non_http_citation_url() -> None:
+    client = MagicMock()
+    client.completion_response.return_value = PerplexityCompletion(
+        content=json.dumps(
+            {
+                "candidates": [
+                    {
+                        "topic": "안전하지 않은 링크 후보",
+                        "category": "생활꿀팁",
+                        "reason": "잘못된 URL입니다.",
+                        "citation_indices": [1],
+                    }
+                ]
+            }
+        ),
+        citations=["javascript:alert(1)"],
+        search_results=[],
     )
 
     with pytest.raises(TopicDiscoveryError, match="no valid"):
@@ -102,6 +127,7 @@ def test_completion_response_keeps_sonar_citations_and_search_results(mock_urlop
     )
 
     request_payload = json.loads(mock_urlopen.call_args.args[0].data.decode("utf-8"))
+    assert mock_urlopen.call_args.args[0].full_url.endswith("/v1/sonar")
     assert completion.citations == ["https://example.com/source"]
     assert completion.search_results == [{"url": "https://example.com/source", "title": "출처"}]
     assert request_payload["response_format"]["type"] == "json_schema"

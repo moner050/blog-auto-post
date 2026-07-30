@@ -53,7 +53,7 @@ class PerplexityClient:
         if not self.settings.perplexity_api_key:
             raise PerplexityAPIError("PERPLEXITY_API_KEY가 설정되지 않았습니다.")
 
-        url = f"{self.settings.perplexity_base_url.rstrip('/')}/chat/completions"
+        url = f"{self.settings.perplexity_base_url.rstrip('/')}/v1/sonar"
         payload = {
             "model": self.settings.perplexity_model,
             "messages": messages,

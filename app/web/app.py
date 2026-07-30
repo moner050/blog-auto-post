@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select, update
 
 from app.content.static import DraftArticleInput, StaticArticleInput, register_draft_article, register_private_article
 from app.content.thumbnails import get_thumbnail_for_category
@@ -245,17 +245,49 @@ def generate_topic_candidate_draft(candidate_id: int) -> dict[str, Any]:
                 "article_id": candidate.article_id,
                 "message": "이미 생성된 초안입니다.",
             }
+        topic = candidate.topic
+        category = candidate.category
         if candidate.status == TopicCandidateStatus.GENERATING and not _generation_is_stale(candidate):
             raise HTTPException(status_code=409, detail="이 주제는 현재 초안을 생성 중입니다.")
         if candidate.status not in {TopicCandidateStatus.NEW, TopicCandidateStatus.FAILED, TopicCandidateStatus.GENERATING}:
             raise HTTPException(status_code=409, detail="이 주제는 초안 생성 상태를 변경할 수 없습니다.")
-        candidate.status = TopicCandidateStatus.GENERATING
-        candidate.error_message = None
+        stale_cutoff = utc_now() - TOPIC_GENERATION_STALE_AFTER
+        claimable = or_(
+            TopicCandidate.status.in_([TopicCandidateStatus.NEW, TopicCandidateStatus.FAILED]),
+            and_(
+                TopicCandidate.status == TopicCandidateStatus.GENERATING,
+                or_(TopicCandidate.updated_at.is_(None), TopicCandidate.updated_at <= stale_cutoff),
+            ),
+        )
+        claimed = session.execute(
+            update(TopicCandidate)
+            .where(
+                TopicCandidate.id == candidate_id,
+                TopicCandidate.article_id.is_(None),
+                claimable,
+            )
+            .values(
+                status=TopicCandidateStatus.GENERATING,
+                error_message=None,
+                updated_at=utc_now(),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if claimed.rowcount != 1:
+            session.rollback()
+            current = session.get(TopicCandidate, candidate_id)
+            if current is not None and current.article_id is not None:
+                return {
+                    "success": True,
+                    "article_id": current.article_id,
+                    "message": "이미 생성된 초안입니다.",
+                }
+            raise HTTPException(status_code=409, detail="이 주제는 현재 초안을 생성 중입니다.")
         session.commit()
 
     try:
-        generated = ArticleGenerator(settings).generate(candidate.topic)
-        thumbnail = get_thumbnail_for_category(candidate.category)
+        generated = ArticleGenerator(settings).generate(topic)
+        thumbnail = get_thumbnail_for_category(category)
         with session_factory() as session:
             current = session.get(TopicCandidate, candidate_id)
             if current is None:

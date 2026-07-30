@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 from hashlib import sha256
 import json
 import re
@@ -54,7 +53,7 @@ TOPIC_DISCOVERY_RESPONSE_FORMAT: dict[str, Any] = {
 
 
 class TopicDiscoveryError(ValueError):
-    """Sonar 주제 추천 응답을 안전하게 사용할 수 없을 때 발생."""
+    """Raised when no safe topic candidate can be retained from Sonar's response."""
 
 
 @dataclass(frozen=True)
@@ -67,7 +66,7 @@ class DiscoveredTopic:
 
 
 class TopicDiscoverer:
-    """Sonar의 최근 검색 결과를 검증 가능한 주제 후보로 정리한다."""
+    """Collect and validate blog topic candidates grounded in recent Sonar search results."""
 
     def __init__(self, client: PerplexityClient):
         self.client = client
@@ -105,18 +104,21 @@ def _build_messages() -> list[dict[str, str]]:
         {
             "role": "system",
             "content": (
-                "검색 결과에 근거한 한국어 블로그 주제 추천 도우미다. "
-                "반드시 제공된 JSON Schema만 따른다. URL을 직접 작성하지 말고, "
-                "검색 근거의 citation 번호만 citation_indices에 넣는다."
+                "Recommend Korean blog topics only from the provided search results. "
+                "Follow the JSON Schema exactly. Do not write URLs; put only Sonar's "
+                "1-based source numbers in citation_indices."
             ),
         },
         {
             "role": "user",
             "content": (
-                f"오늘은 {date.today().isoformat()}이다. 최근 30일 한국 뉴스와 커뮤니티에서 "
-                f"관심을 받은 실용 블로그 주제를 최대 12개 추천해줘. 허용 카테고리는 {categories}뿐이다. "
-                "각 카테고리에서 최대 2개만 제안하고, 각 후보에는 왜 지금 유용한지 짧게 설명해줘. "
-                "모든 후보는 검색 결과 citation을 하나 이상 연결해야 한다."
+                "Find recent Korean news and community discussions from the last 30 days about "
+                "these six areas: Hometax tax filing, refunds, and deductions; Korean government "
+                "policy benefits; Government24 public services; court or legal-life issues; practical "
+                "household tips; and Korea travel tips. Identify current issues or timely how-to topics "
+                "that Korean readers would search for. Return up to 12 Korean candidate topics, at most "
+                f"2 per requested category ({categories}), as the JSON schema. Each candidate must include "
+                "one or more citation_indices corresponding to the source list returned by Sonar."
             ),
         },
     ]
@@ -178,10 +180,13 @@ def _sources_for_indices(
         if not isinstance(index, int) or isinstance(index, bool) or index < 1 or index > len(citations):
             return []
         url = citations[index - 1].strip()
-        if not url or url in seen_urls:
+        parsed_url = urlparse(url)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+            return []
+        if url in seen_urls:
             continue
         seen_urls.add(url)
-        title = title_by_url.get(url) or urlparse(url).netloc or url
+        title = title_by_url.get(url) or parsed_url.netloc
         sources.append({"title": title, "url": url})
     return sources
 

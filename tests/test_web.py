@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from alembic import command
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app.db.session import create_session_factory
+from app.db.models import TopicCandidate, TopicCandidateStatus, utc_now
 from app.llm.generator import GeneratedArticle
 from app.topics.discovery import DiscoveredTopic, TopicDiscoveryError
 from app.web.app import app
@@ -31,6 +33,8 @@ def test_index_page(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "티스토리 자동화 관리자 대시보드" in response.text
+    assert "AI 주제 12개 추천받기" in response.text
+    assert 'id="topic-candidate-list"' in response.text
 
 
 def test_get_stats_api(client):
@@ -260,3 +264,64 @@ def test_failed_topic_draft_generation_can_retry(client):
     assert failed.status_code == 502
     assert retried.status_code == 200
     assert client.get("/api/topic-candidates").json()["candidates"][0]["status"] == "DRAFT_CREATED"
+
+
+def test_stale_topic_draft_generation_can_retry(client):
+    candidate = DiscoveredTopic(
+        topic="여름 기차 여행 짐 줄이는 방법",
+        topic_hash="f" * 64,
+        category="여행꿀팁",
+        reason="휴가철 여행 준비 수요가 높습니다.",
+        sources=[{"title": "여행 뉴스", "url": "https://example.com/travel"}],
+    )
+    with patch("app.web.app.TopicDiscoverer") as mock_discoverer_class:
+        mock_discoverer_class.return_value.discover.return_value = [candidate]
+        candidate_id = client.post("/api/topic-candidates/discover").json()["candidates"][0]["id"]
+
+    from app.web import app as web_module
+
+    with web_module.session_factory() as session:
+        stored = session.get(TopicCandidate, candidate_id)
+        assert stored is not None
+        stored.status = TopicCandidateStatus.GENERATING
+        stored.updated_at = utc_now() - timedelta(minutes=3)
+        session.commit()
+
+    with patch("app.web.app.ArticleGenerator") as mock_generator_class:
+        mock_generator_class.return_value.generate.return_value = GeneratedArticle(
+            title="기차 여행 짐 줄이는 방법",
+            body_html="<p>초안 본문</p>",
+            tags=["여행"],
+        )
+        response = client.post(f"/api/topic-candidates/{candidate_id}/generate-draft")
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+
+def test_active_topic_draft_generation_returns_conflict(client):
+    candidate = DiscoveredTopic(
+        topic="정부24 전자문서지갑 사용 방법",
+        topic_hash="a" * 64,
+        category="정부24",
+        reason="전자문서 이용 수요가 높습니다.",
+        sources=[{"title": "정부24 안내", "url": "https://example.com/gov24"}],
+    )
+    with patch("app.web.app.TopicDiscoverer") as mock_discoverer_class:
+        mock_discoverer_class.return_value.discover.return_value = [candidate]
+        candidate_id = client.post("/api/topic-candidates/discover").json()["candidates"][0]["id"]
+
+    from app.web import app as web_module
+
+    with web_module.session_factory() as session:
+        stored = session.get(TopicCandidate, candidate_id)
+        assert stored is not None
+        stored.status = TopicCandidateStatus.GENERATING
+        stored.updated_at = utc_now()
+        session.commit()
+
+    with patch("app.web.app.ArticleGenerator") as mock_generator_class:
+        response = client.post(f"/api/topic-candidates/{candidate_id}/generate-draft")
+
+    assert response.status_code == 409
+    mock_generator_class.return_value.generate.assert_not_called()
