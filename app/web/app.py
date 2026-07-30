@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select, update
 
-from app.content.static import DraftArticleInput, StaticArticleInput, register_draft_article, register_private_article
+from app.content.static import StaticArticleInput, register_private_article
 from app.content.thumbnails import get_thumbnail_for_category
 from app.core.settings import Settings
 from app.db.models import (
@@ -237,9 +237,9 @@ def discover_topic_candidates() -> dict[str, Any]:
         }
 
 
-@app.post("/api/topic-candidates/{candidate_id}/generate-draft")
-def generate_topic_candidate_draft(candidate_id: int) -> dict[str, Any]:
-    """선택한 후보로만 Sonar 글을 생성해 DB 초안으로 저장."""
+@app.post("/api/topic-candidates/{candidate_id}/generate-article")
+def generate_topic_candidate_article(candidate_id: int) -> dict[str, Any]:
+    """선택한 후보로만 Sonar 글을 생성해 비공개 발행 대기열에 등록."""
     with session_factory() as session:
         candidate = session.get(TopicCandidate, candidate_id)
         if candidate is None:
@@ -248,14 +248,14 @@ def generate_topic_candidate_draft(candidate_id: int) -> dict[str, Any]:
             return {
                 "success": True,
                 "article_id": candidate.article_id,
-                "message": "이미 생성된 초안입니다.",
+                "message": "이미 생성된 글입니다.",
             }
         topic = candidate.topic
         category = candidate.category
         if candidate.status == TopicCandidateStatus.GENERATING and not _generation_is_stale(candidate):
-            raise HTTPException(status_code=409, detail="이 주제는 현재 초안을 생성 중입니다.")
+            raise HTTPException(status_code=409, detail="이 주제는 현재 글을 생성 중입니다.")
         if candidate.status not in {TopicCandidateStatus.NEW, TopicCandidateStatus.FAILED, TopicCandidateStatus.GENERATING}:
-            raise HTTPException(status_code=409, detail="이 주제는 초안 생성 상태를 변경할 수 없습니다.")
+            raise HTTPException(status_code=409, detail="이 주제는 글 생성 상태를 변경할 수 없습니다.")
         stale_cutoff = utc_now() - TOPIC_GENERATION_STALE_AFTER
         claimable = or_(
             TopicCandidate.status.in_([TopicCandidateStatus.NEW, TopicCandidateStatus.FAILED]),
@@ -285,9 +285,9 @@ def generate_topic_candidate_draft(candidate_id: int) -> dict[str, Any]:
                 return {
                     "success": True,
                     "article_id": current.article_id,
-                    "message": "이미 생성된 초안입니다.",
+                    "message": "이미 생성된 글입니다.",
                 }
-            raise HTTPException(status_code=409, detail="이 주제는 현재 초안을 생성 중입니다.")
+            raise HTTPException(status_code=409, detail="이 주제는 현재 글을 생성 중입니다.")
         session.commit()
 
     try:
@@ -301,15 +301,16 @@ def generate_topic_candidate_draft(candidate_id: int) -> dict[str, Any]:
                 return {
                     "success": True,
                     "article_id": current.article_id,
-                    "message": "이미 생성된 초안입니다.",
+                    "message": "이미 생성된 글입니다.",
                 }
-            registered = register_draft_article(
+            registered = register_private_article(
                 session,
-                DraftArticleInput(
+                StaticArticleInput(
                     title=generated.title,
                     body_html=generated.body_html,
                     tags=generated.tags,
                     category=current.category,
+                    target_blog_name=settings.tistory_expected_blog_name,
                     thumbnail_path=thumbnail,
                 ),
             )
@@ -320,7 +321,7 @@ def generate_topic_candidate_draft(candidate_id: int) -> dict[str, Any]:
             return {
                 "success": True,
                 "article_id": registered.article_id,
-                "message": "초안이 DB에 저장되었습니다.",
+                "message": "글이 비공개 발행 대기열에 등록되었습니다.",
             }
     except Exception as error:
         with session_factory() as session:
@@ -329,7 +330,7 @@ def generate_topic_candidate_draft(candidate_id: int) -> dict[str, Any]:
                 current.status = TopicCandidateStatus.FAILED
                 current.error_message = str(error)
                 session.commit()
-        raise HTTPException(status_code=502, detail=f"초안 생성 실패: {error}") from error
+        raise HTTPException(status_code=502, detail=f"글 생성 실패: {error}") from error
 
 
 def _generation_is_stale(candidate: TopicCandidate) -> bool:

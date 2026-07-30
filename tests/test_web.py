@@ -199,7 +199,7 @@ def test_failed_discovery_keeps_latest_topic_candidates(client):
     assert listed.json()["candidates"][0]["topic"] == candidate.topic
 
 
-def test_generate_topic_candidate_creates_idempotent_draft_and_never_queue(client):
+def test_generate_topic_candidate_creates_idempotent_private_publish_queue(client):
     candidate = DiscoveredTopic(
         topic="정부24 모바일 신분증 발급 방법",
         topic_hash="d" * 64,
@@ -219,8 +219,8 @@ def test_generate_topic_candidate_creates_idempotent_draft_and_never_queue(clien
     )
     with patch("app.web.app.ArticleGenerator") as mock_generator_class:
         mock_generator_class.return_value.generate.return_value = generated
-        created = client.post(f"/api/topic-candidates/{candidate_id}/generate-draft")
-        repeated = client.post(f"/api/topic-candidates/{candidate_id}/generate-draft")
+        created = client.post(f"/api/topic-candidates/{candidate_id}/generate-article")
+        repeated = client.post(f"/api/topic-candidates/{candidate_id}/generate-article")
 
     assert created.status_code == 200
     assert repeated.status_code == 200
@@ -228,9 +228,9 @@ def test_generate_topic_candidate_creates_idempotent_draft_and_never_queue(clien
     assert mock_generator_class.return_value.generate.call_count == 1
 
     article = client.get(f"/api/articles/{created.json()['article_id']}")
-    assert article.json()["status"] == "DRAFT"
-    assert client.get("/api/stats").json()["pending_jobs"] == 0
-    assert client.post(f"/api/articles/{created.json()['article_id']}/retry").status_code == 409
+    assert article.json()["status"] == "READY_TO_PUBLISH"
+    assert client.get("/api/stats").json()["pending_jobs"] == 1
+    assert client.post(f"/api/articles/{created.json()['article_id']}/retry").status_code == 200
 
     assert client.delete(f"/api/articles/{created.json()['article_id']}").status_code == 200
     restored = client.get("/api/topic-candidates").json()["candidates"][0]
@@ -252,7 +252,7 @@ def test_failed_topic_draft_generation_can_retry(client):
 
     with patch("app.web.app.ArticleGenerator") as mock_generator_class:
         mock_generator_class.return_value.generate.side_effect = ValueError("Sonar unavailable")
-        failed = client.post(f"/api/topic-candidates/{candidate_id}/generate-draft")
+        failed = client.post(f"/api/topic-candidates/{candidate_id}/generate-article")
 
         mock_generator_class.return_value.generate.side_effect = None
         mock_generator_class.return_value.generate.return_value = GeneratedArticle(
@@ -260,7 +260,7 @@ def test_failed_topic_draft_generation_can_retry(client):
             body_html="<p>초안 본문</p>",
             tags=["여행"],
         )
-        retried = client.post(f"/api/topic-candidates/{candidate_id}/generate-draft")
+        retried = client.post(f"/api/topic-candidates/{candidate_id}/generate-article")
 
     assert failed.status_code == 502
     assert retried.status_code == 200
@@ -294,7 +294,7 @@ def test_stale_topic_draft_generation_can_retry(client):
             body_html="<p>초안 본문</p>",
             tags=["여행"],
         )
-        response = client.post(f"/api/topic-candidates/{candidate_id}/generate-draft")
+        response = client.post(f"/api/topic-candidates/{candidate_id}/generate-article")
 
     assert response.status_code == 200
     assert response.json()["success"] is True
@@ -322,7 +322,7 @@ def test_active_topic_draft_generation_returns_conflict(client):
         session.commit()
 
     with patch("app.web.app.ArticleGenerator") as mock_generator_class:
-        response = client.post(f"/api/topic-candidates/{candidate_id}/generate-draft")
+        response = client.post(f"/api/topic-candidates/{candidate_id}/generate-article")
 
     assert response.status_code == 409
     mock_generator_class.return_value.generate.assert_not_called()

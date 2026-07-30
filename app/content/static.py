@@ -131,5 +131,46 @@ def register_draft_article(session: Session, article_input: DraftArticleInput) -
     return RegisteredDraft(article.id, version.id)
 
 
+def enqueue_draft_article(session: Session, article_id: int, target_blog_name: str) -> RegisteredArticle:
+    article = session.get(Article, article_id)
+    if article is None:
+        raise ValueError("article does not exist")
+    if article.status != ArticleStatus.DRAFT:
+        raise ValueError("article is not a draft")
+
+    version = session.scalar(
+        select(ArticleVersion)
+        .where(ArticleVersion.article_id == article.id)
+        .order_by(ArticleVersion.version_number.desc())
+    )
+    if version is None:
+        raise ValueError("article version does not exist")
+    if session.scalar(select(PublishJob.id).where(PublishJob.article_version_id == version.id)) is not None:
+        raise ValueError("article already has a publish job")
+
+    article.status = ArticleStatus.READY_TO_PUBLISH
+    version.status = ArticleStatus.READY_TO_PUBLISH
+    publish_job = PublishJob(
+        article_version_id=version.id,
+        target_blog_name=target_blog_name,
+        category=version.category,
+        visibility="PRIVATE",
+        status=PublishStatus.PENDING,
+    )
+    session.add(publish_job)
+    session.flush()
+    job = Job(
+        job_type="PUBLISH_TISTORY",
+        entity_id=publish_job.id,
+        payload_json={},
+        status=JobStatus.PENDING,
+        priority=90,
+        max_attempts=2,
+    )
+    session.add(job)
+    session.flush()
+    return RegisteredArticle(article.id, version.id, publish_job.id, job.id)
+
+
 def _normalize(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()

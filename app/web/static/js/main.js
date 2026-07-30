@@ -278,6 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         topicCandidateList.innerHTML = candidates.map(candidate => {
+            const statusLabel = candidate.status === 'DRAFT_CREATED' ? '글 생성 완료' : candidate.status;
             const sources = (candidate.sources || []).map(source => {
                 const url = safeExternalUrl(source.url);
                 if (!url) return '';
@@ -288,18 +289,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 : '';
             let action = '';
             if (candidate.status === 'DRAFT_CREATED' && candidate.article_id) {
-                action = `<button class="btn btn-secondary btn-sm btn-open-draft" data-article-id="${candidate.article_id}">👁️ 초안 보기</button>`;
+                action = `<button class="btn btn-secondary btn-sm btn-open-draft" data-article-id="${candidate.article_id}">👁️ 글 보기</button>`;
             } else if (candidate.status === 'GENERATING') {
-                action = '<button class="btn btn-secondary btn-sm" disabled>⏳ 초안 생성 중</button>';
+                action = '<button class="btn btn-secondary btn-sm" disabled>⏳ 글 생성 중</button>';
             } else {
-                const label = candidate.status === 'FAILED' ? '🔄 다시 글 작성' : '✍️ 이 주제로 글 작성';
+                const label = candidate.status === 'FAILED' ? '🔄 다시 글 생성' : '✍️ 이 주제로 글 생성';
                 action = `<button class="btn btn-accent btn-sm btn-generate-draft" data-candidate-id="${candidate.id}">${label}</button>`;
             }
             return `
                 <article class="topic-candidate-card">
                     <div class="topic-candidate-heading">
                         <span class="badge badge-ai">${escapeHtml(candidate.category)}</span>
-                        <span class="topic-candidate-status">${escapeHtml(candidate.status)}</span>
+                        <span class="topic-candidate-status">${escapeHtml(statusLabel)}</span>
                     </div>
                     <h3>${escapeHtml(candidate.topic)}</h3>
                     <p>${escapeHtml(candidate.reason)}</p>
@@ -355,16 +356,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = document.querySelector(`.btn-generate-draft[data-candidate-id="${candidateId}"]`);
         if (button) {
             button.disabled = true;
-            button.textContent = '⏳ 초안 생성 중';
+            button.textContent = '⏳ 글 생성 중';
         }
         try {
-            const res = await fetch(`/api/topic-candidates/${candidateId}/generate-draft`, { method: 'POST' });
+            const res = await fetch(`/api/topic-candidates/${candidateId}/generate-article`, { method: 'POST' });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || '초안 생성 실패');
-            showTopicCandidateMessage('✅ 초안이 DB에 저장되었습니다. 포스팅 목록에서 미리볼 수 있습니다.', 'success');
+            if (!res.ok) throw new Error(data.detail || '글 생성 실패');
+            showTopicCandidateMessage('✅ 글이 비공개 발행 대기열에 등록되었습니다.', 'success');
             await Promise.all([fetchTopicCandidates(), fetchStats(), fetchArticles()]);
         } catch (err) {
-            showTopicCandidateMessage(`⚠️ 초안 생성 오류: ${err.message}`, 'error');
+            showTopicCandidateMessage(`⚠️ 글 생성 오류: ${err.message}`, 'error');
             await fetchTopicCandidates();
         } finally {
             draftGenerationInProgress = false;
