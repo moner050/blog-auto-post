@@ -20,6 +20,15 @@ class StaticArticleInput:
 
 
 @dataclass(frozen=True)
+class DraftArticleInput:
+    title: str
+    body_html: str
+    tags: list[str]
+    category: str
+    thumbnail_path: Path
+
+
+@dataclass(frozen=True)
 class RegisteredArticle:
     article_id: int
     article_version_id: int
@@ -27,7 +36,13 @@ class RegisteredArticle:
     job_id: int
 
 
-def content_hash_for(article: StaticArticleInput) -> str:
+@dataclass(frozen=True)
+class RegisteredDraft:
+    article_id: int
+    article_version_id: int
+
+
+def content_hash_for(article: StaticArticleInput | DraftArticleInput) -> str:
     normalized = "\n".join(
         [
             _normalize(article.title),
@@ -84,6 +99,36 @@ def register_private_article(session: Session, article_input: StaticArticleInput
     session.add(job)
     session.flush()
     return RegisteredArticle(article.id, version.id, publish_job.id, job.id)
+
+
+def register_draft_article(session: Session, article_input: DraftArticleInput) -> RegisteredDraft:
+    if not article_input.thumbnail_path.is_file():
+        raise ValueError("thumbnail file does not exist")
+    if not article_input.title.strip() or not article_input.body_html.strip() or not article_input.tags:
+        raise ValueError("article content is incomplete")
+    digest = content_hash_for(article_input)
+    if session.scalar(select(Article.id).where(Article.content_hash == digest)) is not None:
+        raise ValueError("duplicate content")
+
+    article = Article(content_hash=digest, status=ArticleStatus.DRAFT)
+    session.add(article)
+    session.flush()
+    version = ArticleVersion(
+        article_id=article.id,
+        version_number=1,
+        title=article_input.title.strip(),
+        body_html=article_input.body_html,
+        tags_json=article_input.tags,
+        category=article_input.category,
+        thumbnail_path=str(article_input.thumbnail_path),
+        content_hash=digest,
+        status=ArticleStatus.DRAFT,
+    )
+    session.add(version)
+    session.flush()
+    session.add(MediaAsset(article_version_id=version.id, kind="THUMBNAIL", local_path=str(article_input.thumbnail_path)))
+    session.flush()
+    return RegisteredDraft(article.id, version.id)
 
 
 def _normalize(value: str) -> str:

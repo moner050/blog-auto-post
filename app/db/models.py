@@ -16,6 +16,7 @@ class Base(DeclarativeBase):
 
 
 class ArticleStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
     READY_TO_PUBLISH = "READY_TO_PUBLISH"
     PUBLISHING = "PUBLISHING"
     VERIFIED = "VERIFIED"
@@ -40,6 +41,13 @@ class PublishStatus(str, enum.Enum):
     AUTH_REQUIRED = "AUTH_REQUIRED"
     UI_BROKEN = "UI_BROKEN"
     PUBLISH_UNVERIFIED = "PUBLISH_UNVERIFIED"
+
+
+class TopicCandidateStatus(str, enum.Enum):
+    NEW = "NEW"
+    GENERATING = "GENERATING"
+    DRAFT_CREATED = "DRAFT_CREATED"
+    FAILED = "FAILED"
 
 
 class Article(Base):
@@ -69,6 +77,28 @@ class ArticleVersion(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     article: Mapped[Article] = relationship(back_populates="versions")
     publish_jobs: Mapped[list[PublishJob]] = relationship(back_populates="article_version")
+
+
+class TopicCandidate(Base):
+    __tablename__ = "topic_candidates"
+    __table_args__ = (UniqueConstraint("batch_id", "topic_hash", name="uq_topic_candidate_batch_hash"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    topic: Mapped[str] = mapped_column(String(255), nullable=False)
+    topic_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    sources_json: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+    status: Mapped[TopicCandidateStatus] = mapped_column(
+        Enum(TopicCandidateStatus), nullable=False, default=TopicCandidateStatus.NEW
+    )
+    article_id: Mapped[int | None] = mapped_column(ForeignKey("articles.id", ondelete="SET NULL"), unique=True)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
 
 
 class MediaAsset(Base):
