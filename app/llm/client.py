@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 from typing import Any
 import urllib.error
@@ -16,6 +17,13 @@ class PerplexityAPIError(Exception):
         self.status_code = status_code
 
 
+@dataclass(frozen=True)
+class PerplexityCompletion:
+    content: str
+    citations: list[str]
+    search_results: list[dict[str, Any]]
+
+
 class PerplexityClient:
     """Perplexity Sonar REST API 연동 클라이언트."""
 
@@ -30,16 +38,34 @@ class PerplexityClient:
         max_tokens: int = 4000,
     ) -> str:
         """Sonar 모델에 completion 요청을 보내고 응답 텍스트를 반환."""
+        return self.completion_response(messages, temperature, max_tokens).content
+
+    def completion_response(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.2,
+        max_tokens: int = 4000,
+        response_format: dict[str, Any] | None = None,
+        search_recency_filter: str | None = None,
+        search_language_filter: list[str] | None = None,
+    ) -> PerplexityCompletion:
+        """Sonar completion 본문과 검색 근거 메타데이터를 함께 반환."""
         if not self.settings.perplexity_api_key:
             raise PerplexityAPIError("PERPLEXITY_API_KEY가 설정되지 않았습니다.")
 
-        url = f"{self.settings.perplexity_base_url.rstrip('/')}/chat/completions"
+        url = f"{self.settings.perplexity_base_url.rstrip('/')}/v1/sonar"
         payload = {
             "model": self.settings.perplexity_model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        if response_format is not None:
+            payload["response_format"] = response_format
+        if search_recency_filter is not None:
+            payload["search_recency_filter"] = search_recency_filter
+        if search_language_filter is not None:
+            payload["search_language_filter"] = search_language_filter
 
         headers = {
             "Authorization": f"Bearer {self.settings.perplexity_api_key}",
@@ -54,7 +80,7 @@ class PerplexityClient:
             with urllib.request.urlopen(req, timeout=self.timeout_seconds) as response:
                 response_body = response.read().decode("utf-8")
                 parsed = json.loads(response_body)
-                return self._extract_content(parsed)
+                return self._extract_completion(parsed)
         except urllib.error.HTTPError as error:
             error_body = error.read().decode("utf-8", errors="ignore")
             raise PerplexityAPIError(
@@ -73,3 +99,15 @@ class PerplexityClient:
             return response_data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as error:
             raise PerplexityAPIError(f"잘못된 API 응답 포맷: {response_data}") from error
+
+    @classmethod
+    def _extract_completion(cls, response_data: dict[str, Any]) -> PerplexityCompletion:
+        citations = response_data.get("citations", [])
+        search_results = response_data.get("search_results", [])
+        if not isinstance(citations, list) or not isinstance(search_results, list):
+            raise PerplexityAPIError(f"잘못된 검색 근거 응답 포맷: {response_data}")
+        return PerplexityCompletion(
+            content=cls._extract_content(response_data),
+            citations=[citation for citation in citations if isinstance(citation, str)],
+            search_results=[result for result in search_results if isinstance(result, dict)],
+        )

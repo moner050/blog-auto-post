@@ -12,6 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputCategory = document.getElementById('input-category');
     const btnSubmitGenerate = document.getElementById('btn-submit-generate');
     const generationMessage = document.getElementById('generation-message');
+    const btnDiscoverTopics = document.getElementById('btn-discover-topics');
+    const topicCandidateMessage = document.getElementById('topic-candidate-message');
+    const topicCandidateList = document.getElementById('topic-candidate-list');
+    let draftGenerationInProgress = false;
 
     const tableArticlesBody = document.getElementById('table-articles-body');
     const btnRefreshList = document.getElementById('btn-refresh-list');
@@ -58,8 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? `<a href="${item.result_url}" target="_blank" style="color: var(--accent-blue);">[링크 보기]</a>` 
                     : '<span style="color: var(--text-secondary);">-</span>';
 
-                // 발행 완료 건을 포함하여 모든 항목에 재등록 버튼 전면 노출
-                const retryBtn = `<button class="btn btn-warning btn-sm btn-retry" data-id="${item.id}" data-title="${escapeHtml(item.title)}">🔄 재등록</button>`;
+                const retryBtn = item.status === 'DRAFT'
+                    ? ''
+                    : `<button class="btn btn-warning btn-sm btn-retry" data-id="${item.id}" data-title="${escapeHtml(item.title)}">🔄 재등록</button>`;
 
                 return `
                     <tr>
@@ -127,6 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     : '<span class="badge badge-publishing">발행 중 (PUBLISHING)</span>';
             case 'READY_TO_PUBLISH':
                 return '<span class="badge badge-ready">발행대기 (READY)</span>';
+            case 'DRAFT':
+                return '<span class="badge badge-ai">초안 (DRAFT)</span>';
             default:
                 const label = errCode ? `${status} (${errCode})` : status;
                 return `<span class="badge badge-failed" title="${escapeHtml(errMsg)}">${escapeHtml(label)}</span>`;
@@ -249,6 +256,121 @@ document.addEventListener('DOMContentLoaded', () => {
         generationMessage.classList.remove('hidden');
     }
 
+    function showTopicCandidateMessage(msg, type) {
+        topicCandidateMessage.textContent = msg;
+        topicCandidateMessage.className = `alert-message ${type}`;
+        topicCandidateMessage.classList.remove('hidden');
+    }
+
+    function safeExternalUrl(value) {
+        try {
+            const url = new URL(value);
+            return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function renderTopicCandidates(candidates) {
+        if (!candidates.length) {
+            topicCandidateList.innerHTML = '<p class="empty-candidates">아직 저장된 주제 후보가 없습니다.</p>';
+            return;
+        }
+
+        topicCandidateList.innerHTML = candidates.map(candidate => {
+            const sources = (candidate.sources || []).map(source => {
+                const url = safeExternalUrl(source.url);
+                if (!url) return '';
+                return `<a class="topic-source" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || url)}</a>`;
+            }).filter(Boolean).join('');
+            const error = candidate.error_message
+                ? `<p class="topic-error">⚠️ ${escapeHtml(candidate.error_message)}</p>`
+                : '';
+            let action = '';
+            if (candidate.status === 'DRAFT_CREATED' && candidate.article_id) {
+                action = `<button class="btn btn-secondary btn-sm btn-open-draft" data-article-id="${candidate.article_id}">👁️ 초안 보기</button>`;
+            } else if (candidate.status === 'GENERATING') {
+                action = '<button class="btn btn-secondary btn-sm" disabled>⏳ 초안 생성 중</button>';
+            } else {
+                const label = candidate.status === 'FAILED' ? '🔄 다시 글 작성' : '✍️ 이 주제로 글 작성';
+                action = `<button class="btn btn-accent btn-sm btn-generate-draft" data-candidate-id="${candidate.id}">${label}</button>`;
+            }
+            return `
+                <article class="topic-candidate-card">
+                    <div class="topic-candidate-heading">
+                        <span class="badge badge-ai">${escapeHtml(candidate.category)}</span>
+                        <span class="topic-candidate-status">${escapeHtml(candidate.status)}</span>
+                    </div>
+                    <h3>${escapeHtml(candidate.topic)}</h3>
+                    <p>${escapeHtml(candidate.reason)}</p>
+                    ${error}
+                    <div class="topic-sources">${sources}</div>
+                    <div class="topic-candidate-actions">${action}</div>
+                </article>
+            `;
+        }).join('');
+
+        document.querySelectorAll('.btn-generate-draft').forEach(button => {
+            button.addEventListener('click', event => generateDraft(event.currentTarget.dataset.candidateId));
+        });
+        document.querySelectorAll('.btn-open-draft').forEach(button => {
+            button.addEventListener('click', event => openPreviewModal(event.currentTarget.dataset.articleId));
+        });
+    }
+
+    async function fetchTopicCandidates() {
+        try {
+            const res = await fetch('/api/topic-candidates');
+            if (!res.ok) throw new Error('후보 목록 조회 실패');
+            const data = await res.json();
+            renderTopicCandidates(data.candidates || []);
+        } catch (err) {
+            showTopicCandidateMessage(`⚠️ 후보 목록 오류: ${err.message}`, 'error');
+        }
+    }
+
+    async function discoverTopics() {
+        btnDiscoverTopics.disabled = true;
+        btnDiscoverTopics.innerHTML = '<span class="btn-icon">⏳</span> 주제 수집 중...';
+        try {
+            const res = await fetch('/api/topic-candidates/discover', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '주제 수집 실패');
+            renderTopicCandidates(data.candidates || []);
+            showTopicCandidateMessage(`✅ ${data.count}개의 주제 후보를 저장했습니다.`, 'success');
+        } catch (err) {
+            showTopicCandidateMessage(`⚠️ 주제 수집 오류: ${err.message}`, 'error');
+        } finally {
+            btnDiscoverTopics.disabled = false;
+            btnDiscoverTopics.innerHTML = '<span class="btn-icon">🔎</span> AI 주제 12개 추천받기';
+        }
+    }
+
+    async function generateDraft(candidateId) {
+        if (draftGenerationInProgress) return;
+        draftGenerationInProgress = true;
+        document.querySelectorAll('.btn-generate-draft').forEach(item => {
+            item.disabled = true;
+        });
+        const button = document.querySelector(`.btn-generate-draft[data-candidate-id="${candidateId}"]`);
+        if (button) {
+            button.disabled = true;
+            button.textContent = '⏳ 초안 생성 중';
+        }
+        try {
+            const res = await fetch(`/api/topic-candidates/${candidateId}/generate-draft`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '초안 생성 실패');
+            showTopicCandidateMessage('✅ 초안이 DB에 저장되었습니다. 포스팅 목록에서 미리볼 수 있습니다.', 'success');
+            await Promise.all([fetchTopicCandidates(), fetchStats(), fetchArticles()]);
+        } catch (err) {
+            showTopicCandidateMessage(`⚠️ 초안 생성 오류: ${err.message}`, 'error');
+            await fetchTopicCandidates();
+        } finally {
+            draftGenerationInProgress = false;
+        }
+    }
+
     // 7. Run Worker
     btnRunWorker.addEventListener('click', async () => {
         btnRunWorker.disabled = true;
@@ -276,7 +398,10 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchArticles();
     });
 
+    btnDiscoverTopics.addEventListener('click', discoverTopics);
+
     // Initial Load
     fetchStats();
     fetchArticles();
+    fetchTopicCandidates();
 });

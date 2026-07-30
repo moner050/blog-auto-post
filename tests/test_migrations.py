@@ -20,4 +20,5 @@ def test_initial_alembic_migration_creates_private_publishing_schema(tmp_path) -
         "jobs",
         "job_runs",
         "system_settings",
+        "topic_candidates",
     }.issubset(tables)

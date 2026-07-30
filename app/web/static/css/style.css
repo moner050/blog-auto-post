@@ -461,3 +461,56 @@ body {
 .alert-message.success { background-color: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
 .alert-message.error { background-color: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
 .alert-message.hidden { display: none; }
+
+/* Topic candidates */
+.topic-candidate-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.topic-candidate-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.65rem;
+    background-color: rgba(15, 23, 42, 0.35);
+}
+
+.topic-candidate-heading,
+.topic-candidate-actions,
+.topic-sources {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.topic-candidate-card h3 {
+    font-size: 1rem;
+    line-height: 1.45;
+}
+
+.topic-candidate-card p,
+.empty-candidates,
+.topic-candidate-status {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.topic-error {
+    color: var(--accent-red) !important;
+}
+
+.topic-source {
+    color: var(--accent-blue);
+    font-size: 0.8rem;
+    text-decoration: none;
+}
+
+.topic-source:hover {
+    text-decoration: underline;
+}
