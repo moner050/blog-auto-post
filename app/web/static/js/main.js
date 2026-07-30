@@ -313,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr class="topic-candidate-row" data-candidate-id="${candidate.id}" tabindex="0" role="button" aria-label="${escapeHtml(candidate.topic)} 상세 보기">
                     <td><span class="badge badge-ai">${escapeHtml(candidate.category)}</span></td>
                     <td class="topic-candidate-topic" title="${escapeHtml(candidate.topic)}">${escapeHtml(candidate.topic)}</td>
-                    <td class="topic-candidate-reason" title="${escapeHtml(candidate.reason)}">${escapeHtml(candidate.reason)}</td>
                     <td><span class="topic-candidate-status">${escapeHtml(statusLabel)}</span></td>
                     <td class="topic-candidate-action-cell"><div class="topic-candidate-actions">${action}</div></td>
                 </tr>
@@ -326,7 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <tr>
                             <th>카테고리</th>
                             <th>주제</th>
-                            <th>추천 이유</th>
                             <th>상태</th>
                             <th>작업</th>
                         </tr>
