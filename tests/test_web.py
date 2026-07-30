@@ -199,6 +199,51 @@ def test_failed_discovery_keeps_latest_topic_candidates(client):
     assert listed.json()["candidates"][0]["topic"] == candidate.topic
 
 
+def test_delete_topic_candidate_removes_candidate_from_latest_batch(client):
+    candidate = DiscoveredTopic(
+        topic="삭제할 추천 주제",
+        topic_hash="9" * 64,
+        category="생활꿀팁",
+        reason="삭제 API를 검증합니다.",
+        sources=[{"title": "검증 출처", "url": "https://example.com/delete"}],
+    )
+    with patch("app.web.app.TopicDiscoverer") as mock_discoverer_class:
+        mock_discoverer_class.return_value.discover.return_value = [candidate]
+        candidate_id = client.post("/api/topic-candidates/discover").json()["candidates"][0]["id"]
+
+    response = client.delete(f"/api/topic-candidates/{candidate_id}")
+
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+    assert client.get("/api/topic-candidates").json()["count"] == 0
+
+
+def test_delete_generating_topic_candidate_returns_conflict(client):
+    candidate = DiscoveredTopic(
+        topic="생성 중인 추천 주제",
+        topic_hash="8" * 64,
+        category="생활꿀팁",
+        reason="생성 선점 상태를 검증합니다.",
+        sources=[{"title": "검증 출처", "url": "https://example.com/generating"}],
+    )
+    with patch("app.web.app.TopicDiscoverer") as mock_discoverer_class:
+        mock_discoverer_class.return_value.discover.return_value = [candidate]
+        candidate_id = client.post("/api/topic-candidates/discover").json()["candidates"][0]["id"]
+
+    from app.web import app as web_module
+
+    with web_module.session_factory() as session:
+        stored = session.get(TopicCandidate, candidate_id)
+        assert stored is not None
+        stored.status = TopicCandidateStatus.GENERATING
+        session.commit()
+
+    response = client.delete(f"/api/topic-candidates/{candidate_id}")
+
+    assert response.status_code == 409
+    assert client.get("/api/topic-candidates").json()["count"] == 1
+
+
 def test_generate_topic_candidate_creates_idempotent_private_publish_queue(client):
     candidate = DiscoveredTopic(
         topic="정부24 모바일 신분증 발급 방법",

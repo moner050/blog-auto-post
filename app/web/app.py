@@ -206,6 +206,20 @@ def list_topic_candidates() -> dict[str, Any]:
         }
 
 
+@app.delete("/api/topic-candidates/{candidate_id}")
+def delete_topic_candidate(candidate_id: int) -> dict[str, bool]:
+    """추천 후보만 삭제하며 연결된 글과 발행 작업은 유지한다."""
+    with session_factory() as session:
+        candidate = session.get(TopicCandidate, candidate_id)
+        if candidate is None:
+            raise HTTPException(status_code=404, detail="삭제할 주제 후보를 찾을 수 없습니다.")
+        if candidate.status == TopicCandidateStatus.GENERATING:
+            raise HTTPException(status_code=409, detail="글 생성 중인 주제 후보는 삭제할 수 없습니다.")
+        session.delete(candidate)
+        session.commit()
+    return {"success": True}
+
+
 @app.post("/api/topic-candidates/discover")
 def discover_topic_candidates() -> dict[str, Any]:
     """Sonar를 한 번 호출해 검증 가능한 주제 후보 배치를 저장."""
