@@ -72,7 +72,12 @@ def _candidate_response(candidate: TopicCandidate) -> dict[str, Any]:
 @app.get("/", response_class=HTMLResponse)
 def index_page(request: Request):
     """대시보드 메인 HTML 페이지 렌더링."""
-    return templates.TemplateResponse(request=request, name="index.html")
+    main_js_path = BASE_DIR / "static" / "js" / "main.js"
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"main_js_version": main_js_path.stat().st_mtime_ns},
+    )
 
 
 @app.get("/api/stats")

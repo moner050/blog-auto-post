@@ -35,6 +35,7 @@ def test_index_page(client):
     assert "티스토리 자동화 관리자 대시보드" in response.text
     assert "AI 주제 12개 추천받기" in response.text
     assert 'id="topic-candidate-list"' in response.text
+    assert 'src="/static/js/main.js?v=' in response.text
 
 
 def test_get_stats_api(client):
