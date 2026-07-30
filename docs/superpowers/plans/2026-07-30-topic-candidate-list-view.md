@@ -146,3 +146,42 @@ Expected: all tests pass, Python compilation and JavaScript syntax checks succee
 git add docs/superpowers/plans/2026-07-30-topic-candidate-list-view.md
 git commit -m "docs: plan topic candidate list view"
 ```
+
+### Task 4: 한 줄 후보 목록과 상세 모달
+
+**Files:**
+- Modify: `app/web/templates/index.html`
+- Modify: `app/web/static/js/main.js`
+- Modify: `app/web/static/css/style.css`
+
+**Interfaces:**
+- Consumes: candidate response fields `id`, `category`, `topic`, `reason`, `sources`, `status`, `article_id`, `error_message`
+- Produces: clickable `.topic-candidate-row` and `#modal-topic-candidate`
+
+- [x] **Step 1: Render compact rows and add the modal markup**
+
+```javascript
+<tr class="topic-candidate-row" data-candidate-id="${candidate.id}" tabindex="0">
+    <td>${category}</td><td>${topic}</td><td>${reason}</td><td>${status}</td>
+</tr>
+```
+
+```html
+<div id="modal-topic-candidate" class="modal hidden">...</div>
+```
+
+- [x] **Step 2: Add modal behavior and status-aware actions**
+
+```javascript
+function openTopicCandidateModal(candidate) { /* render details and action buttons */ }
+```
+
+- [x] **Step 3: Verify dashboard behavior**
+
+Open the dashboard, select a candidate row, verify its complete data and action buttons in the modal, then close the modal without generating or deleting a real candidate.
+
+- [x] **Step 4: Run verification and commit**
+
+Run: `python -m pytest -q; python -m compileall -q app migrations; node --check app/web/static/js/main.js; git diff --check`
+
+Expected: all commands succeed.

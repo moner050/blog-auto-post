@@ -27,6 +27,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTitle = document.getElementById('modal-title');
     const modalTags = document.getElementById('modal-tags');
     const modalHtmlContent = document.getElementById('modal-html-content');
+    const modalTopicCandidate = document.getElementById('modal-topic-candidate');
+    const topicCandidateModalOverlay = document.getElementById('topic-candidate-modal-overlay');
+    const btnCloseTopicCandidateModal = document.getElementById('btn-close-topic-candidate-modal');
+    const topicCandidateModalTitle = document.getElementById('topic-candidate-modal-title');
+    const topicCandidateModalMeta = document.getElementById('topic-candidate-modal-meta');
+    const topicCandidateModalReason = document.getElementById('topic-candidate-modal-reason');
+    const topicCandidateModalSources = document.getElementById('topic-candidate-modal-sources');
+    const topicCandidateModalError = document.getElementById('topic-candidate-modal-error');
+    const topicCandidateModalActions = document.getElementById('topic-candidate-modal-actions');
 
     // 1. Fetch Stats
     async function fetchStats() {
@@ -214,6 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     btnCloseModal.addEventListener('click', closeModal);
     modalOverlay.addEventListener('click', closeModal);
+    btnCloseTopicCandidateModal.addEventListener('click', closeTopicCandidateModal);
+    topicCandidateModalOverlay.addEventListener('click', closeTopicCandidateModal);
 
     // 6. Submit Form: Generate Article
     formGenerate.addEventListener('submit', async (e) => {
@@ -280,36 +291,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const candidatesById = new Map(candidates.map(candidate => [String(candidate.id), candidate]));
         const rows = candidates.map(candidate => {
             const statusLabel = candidate.status === 'DRAFT_CREATED' ? '글 생성 완료' : candidate.status;
-            const sources = (candidate.sources || []).map(source => {
-                const url = safeExternalUrl(source.url);
-                if (!url) return '';
-                return `<a class="topic-source" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || url)}</a>`;
-            }).filter(Boolean).join('<br>') || '-';
-            const error = candidate.error_message
-                ? `<div class="topic-error">⚠️ ${escapeHtml(candidate.error_message)}</div>`
-                : '';
-            let action = '';
-            if (candidate.status === 'DRAFT_CREATED' && candidate.article_id) {
-                action = `<button class="btn btn-secondary btn-sm btn-open-draft" data-article-id="${candidate.article_id}">👁️ 글 보기</button>`;
-            } else if (candidate.status === 'GENERATING') {
-                action = '<button class="btn btn-secondary btn-sm" disabled>⏳ 글 생성 중</button>';
-            } else {
-                const label = candidate.status === 'FAILED' ? '🔄 다시 글 생성' : '✍️ 이 주제로 글 생성';
-                action = `<button class="btn btn-accent btn-sm btn-generate-draft" data-candidate-id="${candidate.id}">${label}</button>`;
-            }
             return `
-                <tr>
+                <tr class="topic-candidate-row" data-candidate-id="${candidate.id}" tabindex="0" role="button" aria-label="${escapeHtml(candidate.topic)} 상세 보기">
                     <td><span class="badge badge-ai">${escapeHtml(candidate.category)}</span></td>
-                    <td class="topic-candidate-topic">${escapeHtml(candidate.topic)}</td>
-                    <td class="topic-candidate-reason">${escapeHtml(candidate.reason)}${error}</td>
-                    <td class="topic-sources">${sources}</td>
+                    <td class="topic-candidate-topic" title="${escapeHtml(candidate.topic)}">${escapeHtml(candidate.topic)}</td>
+                    <td class="topic-candidate-reason" title="${escapeHtml(candidate.reason)}">${escapeHtml(candidate.reason)}</td>
                     <td><span class="topic-candidate-status">${escapeHtml(statusLabel)}</span></td>
-                    <td>
-                        <div class="topic-candidate-actions">
-                            ${action}
-                            <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}"${candidate.status === 'GENERATING' ? ' disabled' : ''}>🗑️ 삭제</button>
-                        </div>
-                    </td>
                 </tr>
             `;
         }).join('');
@@ -321,9 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <th>카테고리</th>
                             <th>주제</th>
                             <th>추천 이유</th>
-                            <th>출처</th>
                             <th>상태</th>
-                            <th>작업</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -331,18 +316,74 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        document.querySelectorAll('.btn-generate-draft').forEach(button => {
-            button.addEventListener('click', event => generateDraft(event.currentTarget.dataset.candidateId));
-        });
-        document.querySelectorAll('.btn-open-draft').forEach(button => {
-            button.addEventListener('click', event => openPreviewModal(event.currentTarget.dataset.articleId));
-        });
-        document.querySelectorAll('.btn-delete-candidate').forEach(button => {
-            button.addEventListener('click', event => {
-                const candidate = candidatesById.get(event.currentTarget.dataset.candidateId);
-                if (candidate) deleteTopicCandidate(candidate, event.currentTarget);
+        document.querySelectorAll('.topic-candidate-row').forEach(row => {
+            const openCandidate = () => {
+                const candidate = candidatesById.get(row.dataset.candidateId);
+                if (candidate) openTopicCandidateModal(candidate);
+            };
+            row.addEventListener('click', openCandidate);
+            row.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openCandidate();
+                }
             });
         });
+    }
+
+    function openTopicCandidateModal(candidate) {
+        const statusLabel = candidate.status === 'DRAFT_CREATED' ? '글 생성 완료' : candidate.status;
+        const sources = (candidate.sources || []).map(source => {
+            const url = safeExternalUrl(source.url);
+            if (!url) return '';
+            return `<a class="topic-source" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || url)}</a>`;
+        }).filter(Boolean).join('') || '<span class="topic-candidate-empty">등록된 출처가 없습니다.</span>';
+
+        topicCandidateModalTitle.textContent = candidate.topic;
+        topicCandidateModalMeta.innerHTML = `
+            <span class="badge badge-ai">${escapeHtml(candidate.category)}</span>
+            <span class="topic-candidate-status">${escapeHtml(statusLabel)}</span>
+        `;
+        topicCandidateModalReason.textContent = candidate.reason;
+        topicCandidateModalSources.innerHTML = sources;
+        topicCandidateModalError.innerHTML = candidate.error_message
+            ? `<div class="alert-message error">⚠️ ${escapeHtml(candidate.error_message)}</div>`
+            : '';
+
+        if (candidate.status === 'DRAFT_CREATED' && candidate.article_id) {
+            topicCandidateModalActions.innerHTML = `
+                <button class="btn btn-secondary btn-sm btn-open-draft" data-article-id="${candidate.article_id}">👁️ 글 보기</button>
+                <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}">🗑️ 삭제</button>
+            `;
+        } else if (candidate.status === 'GENERATING') {
+            topicCandidateModalActions.innerHTML = `
+                <button class="btn btn-secondary btn-sm" disabled>⏳ 글 생성 중</button>
+                <button class="btn btn-danger btn-sm" disabled>🗑️ 삭제</button>
+            `;
+        } else {
+            const label = candidate.status === 'FAILED' ? '🔄 다시 글 생성' : '✍️ 이 주제로 글 생성';
+            topicCandidateModalActions.innerHTML = `
+                <button class="btn btn-accent btn-sm btn-generate-draft" data-candidate-id="${candidate.id}">${label}</button>
+                <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}">🗑️ 삭제</button>
+            `;
+        }
+
+        topicCandidateModalActions.querySelector('.btn-generate-draft')?.addEventListener('click', () => {
+            closeTopicCandidateModal();
+            generateDraft(candidate.id);
+        });
+        topicCandidateModalActions.querySelector('.btn-open-draft')?.addEventListener('click', () => {
+            closeTopicCandidateModal();
+            openPreviewModal(candidate.article_id);
+        });
+        topicCandidateModalActions.querySelector('.btn-delete-candidate')?.addEventListener('click', event => {
+            deleteTopicCandidate(candidate, event.currentTarget, closeTopicCandidateModal);
+        });
+        modalTopicCandidate.classList.remove('hidden');
+    }
+
+    function closeTopicCandidateModal() {
+        modalTopicCandidate.classList.add('hidden');
     }
 
     async function fetchTopicCandidates() {
@@ -398,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function deleteTopicCandidate(candidate, button) {
+    async function deleteTopicCandidate(candidate, button, onSuccess) {
         if (!window.confirm(`'${candidate.topic}' 후보를 삭제할까요?`)) return;
         button.disabled = true;
         try {
@@ -406,6 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || '후보 삭제 실패');
             showTopicCandidateMessage('✅ 주제 후보를 삭제했습니다.', 'success');
+            onSuccess?.();
             await Promise.all([fetchTopicCandidates(), fetchStats()]);
         } catch (err) {
             button.disabled = false;

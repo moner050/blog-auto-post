@@ -443,6 +443,36 @@ body {
     gap: 1rem;
 }
 
+.topic-candidate-modal-content {
+    max-width: 680px;
+}
+
+.topic-candidate-detail-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.topic-candidate-detail-section h4 {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.topic-candidate-detail-section p {
+    line-height: 1.65;
+    white-space: pre-wrap;
+}
+
+.topic-candidate-modal-content .topic-sources {
+    align-items: flex-start;
+    flex-direction: column;
+}
+
+.topic-candidate-empty {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
 .html-preview-frame {
     background-color: #ffffff;
     color: #1e293b;
@@ -475,8 +505,9 @@ body {
 
 .topic-candidate-table {
     width: 100%;
-    min-width: 980px;
+    min-width: 760px;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
 .topic-candidate-table th,
@@ -484,7 +515,10 @@ body {
     padding: 0.9rem 1rem;
     border-bottom: 1px solid var(--border-color);
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .topic-candidate-table th {
@@ -503,6 +537,20 @@ body {
     background-color: rgba(59, 130, 246, 0.05);
 }
 
+.topic-candidate-row {
+    cursor: pointer;
+}
+
+.topic-candidate-row:focus {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: -2px;
+}
+
+.topic-candidate-table th:nth-child(1) { width: 12%; }
+.topic-candidate-table th:nth-child(2) { width: 31%; }
+.topic-candidate-table th:nth-child(3) { width: 42%; }
+.topic-candidate-table th:nth-child(4) { width: 15%; }
+
 .topic-candidate-actions,
 .topic-sources {
     display: flex;
@@ -510,19 +558,9 @@ body {
     flex-wrap: wrap;
 }
 
-.topic-candidate-actions {
-    min-width: 235px;
-}
-
 .topic-candidate-topic {
-    min-width: 220px;
     color: var(--text-primary);
     font-weight: 600;
-    line-height: 1.45;
-}
-
-.topic-candidate-reason {
-    min-width: 250px;
 }
 
 .empty-candidates,

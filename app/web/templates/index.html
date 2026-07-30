@@ -169,6 +169,30 @@
         </div>
     </div>
 
+    <!-- Topic Candidate Detail Modal -->
+    <div id="modal-topic-candidate" class="modal hidden">
+        <div class="modal-overlay" id="topic-candidate-modal-overlay"></div>
+        <div class="modal-content topic-candidate-modal-content">
+            <div class="modal-header">
+                <h3 id="topic-candidate-modal-title">AI 주제 상세</h3>
+                <button id="btn-close-topic-candidate-modal" class="btn-close" aria-label="AI 주제 상세 닫기">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="topic-candidate-modal-meta" class="meta-tags-container"></div>
+                <section class="topic-candidate-detail-section">
+                    <h4>추천 이유</h4>
+                    <p id="topic-candidate-modal-reason"></p>
+                </section>
+                <section class="topic-candidate-detail-section">
+                    <h4>출처</h4>
+                    <div id="topic-candidate-modal-sources" class="topic-sources"></div>
+                </section>
+                <div id="topic-candidate-modal-error"></div>
+                <div id="topic-candidate-modal-actions" class="topic-candidate-actions"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/main.js?v={{ main_js_version }}"></script>
 </body>
 </html>
