@@ -39,12 +39,12 @@ ENV/
 # 저장소 (storage) 내 동적 데이터 제외 및 필수 이미지 유지
 storage/*
 !storage/default_thumbnail.png
-!storage/goverment-policy.png
-!storage/goverment24.png
-!storage/hometax.png
-!storage/law.png
 !storage/lifestyle.png
-!storage/travel.png
+!storage/government-support.png
+!storage/loan-finance.png
+!storage/tax-refund.png
+!storage/traffic-card.png
+!storage/travel-discount.png
 
 # IDE 및 OS 임시 파일
 .idea/

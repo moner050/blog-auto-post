@@ -15,8 +15,10 @@ def test_build_prompts():
     assert "HTML <a> 바로가기" in sys_prompt
     assert "각주 번호" in sys_prompt
     assert "<table>" in sys_prompt
+    assert "구체적이고 자세한 설명" in sys_prompt
     assert "표를 만들어 상세 설명을 보완" in sys_prompt
     assert "주민등록등본 발급" in user_prompt
+    assert "구체적이고 자세한 설명" in user_prompt
 
 
 @patch("requests.post")

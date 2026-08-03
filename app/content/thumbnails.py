@@ -2,18 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-# 카테고리별 고정 썸네일 매핑 테이블 (정부24, 법원, 여행꿀팁 추가)
+# 카테고리별 고정 썸네일 매핑 테이블
 CATEGORY_THUMBNAIL_MAP: dict[str, Path] = {
-    "홈텍스": Path("storage/hometax.png"),
-    "홈택스": Path("storage/hometax.png"),
-    "정부정책": Path("storage/goverment-policy.png"),
-    "정부24": Path("storage/goverment24.png"),
-    "법원": Path("storage/law.png"),
-    "대법원": Path("storage/law.png"),
-    "법률": Path("storage/law.png"),
     "생활꿀팁": Path("storage/lifestyle.png"),
-    "여행꿀팁": Path("storage/travel.png"),
-    "여행": Path("storage/travel.png"),
+    "정부지원·민원": Path("storage/government-support.png"),
+    "대출·금융": Path("storage/loan-finance.png"),
+    "세금·환급": Path("storage/tax-refund.png"),
+    "교통·카드혜택": Path("storage/traffic-card.png"),
+    "여행·할인": Path("storage/travel-discount.png"),
 }
 
 

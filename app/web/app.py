@@ -54,6 +54,10 @@ class GenerateArticleRequest(BaseModel):
     thumbnail_path: str | None = None
 
 
+class DiscoverTopicCandidatesRequest(BaseModel):
+    focus_sns: bool = False
+
+
 def _candidate_response(candidate: TopicCandidate) -> dict[str, Any]:
     return {
         "id": candidate.id,
@@ -221,10 +225,13 @@ def delete_topic_candidate(candidate_id: int) -> dict[str, bool]:
 
 
 @app.post("/api/topic-candidates/discover")
-def discover_topic_candidates() -> dict[str, Any]:
+def discover_topic_candidates(
+    payload: DiscoverTopicCandidatesRequest | None = None,
+) -> dict[str, Any]:
     """Sonar를 한 번 호출해 검증 가능한 주제 후보 배치를 저장."""
+    focus_sns = payload.focus_sns if payload else False
     try:
-        discovered = TopicDiscoverer(PerplexityClient(settings)).discover()
+        discovered = TopicDiscoverer(PerplexityClient(settings)).discover(focus_sns=focus_sns)
     except Exception as error:
         raise HTTPException(status_code=502, detail=f"주제 후보 수집 실패: {error}") from error
 

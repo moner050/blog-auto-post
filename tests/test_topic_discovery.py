@@ -26,14 +26,14 @@ def test_discoverer_keeps_valid_unique_candidates_and_maps_citations() -> None:
     client.completion_response.return_value = sonar_response(
         [
             {
-                "topic": "정부24 모바일 신분증 발급 방법",
-                "category": "정부24",
+                "topic": "정부지원 청년도약계좌 신청 방법",
+                "category": "정부지원·민원",
                 "reason": "최근 이용 문의가 늘고 있습니다.",
                 "citation_indices": [1, 2],
             },
             {
-                "topic": "  정부24   모바일 신분증 발급 방법  ",
-                "category": "정부24",
+                "topic": "  정부지원 청년도약계좌   신청 방법  ",
+                "category": "정부지원·민원",
                 "reason": "중복 후보입니다.",
                 "citation_indices": [1],
             },
@@ -55,15 +55,38 @@ def test_discoverer_keeps_valid_unique_candidates_and_maps_citations() -> None:
     discovered = TopicDiscoverer(client).discover()
 
     assert len(discovered) == 1
-    assert discovered[0].topic == "정부24 모바일 신분증 발급 방법"
+    assert discovered[0].topic == "정부지원 청년도약계좌 신청 방법"
     assert discovered[0].sources == [
         {"title": "뉴스 근거", "url": "https://news.example.com/topic"},
         {"title": "커뮤니티 근거", "url": "https://community.example.com/topic"},
     ]
     assert client.completion_response.call_args.kwargs["search_recency_filter"] == "month"
     assert client.completion_response.call_args.kwargs["search_language_filter"] == ["ko"]
-    assert "Hometax tax filing" in client.completion_response.call_args.kwargs["messages"][1]["content"]
-    assert "Government24 public services" in client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "practical household tips" in client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "정부지원·민원" in client.completion_response.call_args.kwargs["messages"][1]["content"]
+
+
+def test_discoverer_supports_focus_sns_option() -> None:
+    client = MagicMock()
+    client.completion_response.return_value = sonar_response(
+        [
+            {
+                "topic": "클리앙/뽐뿌 핫딜 알뜰폰 요금제 비교",
+                "category": "생활꿀팁",
+                "reason": "커뮤니티에서 실시간 관심도가 매우 높습니다.",
+                "citation_indices": [2],
+            }
+        ]
+    )
+
+    discovered = TopicDiscoverer(client).discover(focus_sns=True)
+
+    assert len(discovered) == 1
+    system_prompt = client.completion_response.call_args.kwargs["messages"][0]["content"]
+    user_prompt = client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "EXCLUSIVELY" in system_prompt
+    assert "Search EXCLUSIVELY" in user_prompt
+    assert "DCInside" in user_prompt or "Clien" in user_prompt
 
 
 def test_discoverer_rejects_empty_valid_result() -> None:
@@ -72,7 +95,7 @@ def test_discoverer_rejects_empty_valid_result() -> None:
         [
             {
                 "topic": "출처 없는 후보",
-                "category": "여행꿀팁",
+                "category": "여행·할인",
                 "reason": "근거가 없습니다.",
                 "citation_indices": [],
             }

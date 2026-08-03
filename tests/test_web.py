@@ -160,9 +160,12 @@ def test_discover_and_list_topic_candidates_api(client):
         ),
     ]
     with patch("app.web.app.TopicDiscoverer") as mock_discoverer_class:
-        mock_discoverer_class.return_value.discover.return_value = candidates
+        mock_instance = MagicMock()
+        mock_instance.discover.return_value = candidates
+        mock_discoverer_class.return_value = mock_instance
 
-        response = client.post("/api/topic-candidates/discover")
+        response = client.post("/api/topic-candidates/discover", json={"focus_sns": True})
+        mock_instance.discover.assert_called_once_with(focus_sns=True)
 
     assert response.status_code == 200
     data = response.json()

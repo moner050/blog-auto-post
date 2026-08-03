@@ -11,12 +11,12 @@ from app.llm.client import PerplexityClient
 
 
 ALLOWED_CATEGORIES = (
-    "홈택스",
-    "정부정책",
-    "정부24",
-    "법원",
     "생활꿀팁",
-    "여행꿀팁",
+    "정부지원·민원",
+    "대출·금융",
+    "세금·환급",
+    "교통·카드혜택",
+    "여행·할인",
 )
 
 TOPIC_DISCOVERY_RESPONSE_FORMAT: dict[str, Any] = {
@@ -71,9 +71,9 @@ class TopicDiscoverer:
     def __init__(self, client: PerplexityClient):
         self.client = client
 
-    def discover(self) -> list[DiscoveredTopic]:
+    def discover(self, focus_sns: bool = False) -> list[DiscoveredTopic]:
         completion = self.client.completion_response(
-            messages=_build_messages(),
+            messages=_build_messages(focus_sns=focus_sns),
             temperature=0.2,
             max_tokens=2500,
             response_format=TOPIC_DISCOVERY_RESPONSE_FORMAT,
@@ -98,29 +98,46 @@ class TopicDiscoverer:
         return discovered
 
 
-def _build_messages() -> list[dict[str, str]]:
+def _build_messages(focus_sns: bool = False) -> list[dict[str, str]]:
     categories = ", ".join(ALLOWED_CATEGORIES)
+
+    if focus_sns:
+        system_prompt = (
+            "Recommend Korean blog topics EXCLUSIVELY from online community posts, forum discussions, and social media user feedback. "
+            "EXCLUDE standard news articles or official press releases. "
+            "Follow the JSON Schema exactly. Do not write URLs; put only Sonar's "
+            "1-based source numbers in citation_indices."
+        )
+        user_prompt = (
+            "Search EXCLUSIVELY for recent online community discussions, forum posts, viral social media trends, and user feedback "
+            "from the last 30 days (such as DCInside, Clien, Ppomppu, Ruliweb, FMKorea, Blind, Naver Cafe, Instagram, YouTube comments, X/Twitter). "
+            "DO NOT use standard news articles or press releases as primary topic sources. "
+            "Focus ONLY on topics originating from these six areas: practical household tips (생활꿀팁); Korean government support and civil services (정부지원·민원); "
+            "loans and financial products (대출·금융); tax filings and tax refunds (세금·환급); public transport and card benefits (교통·카드혜택); "
+            "and travel discounts and recommendations (여행·할인). "
+            "Identify real user experiences, community controversies, viral tips, consumer complaints, and hot community issues. "
+            f"Return up to 12 Korean candidate topics, at most 2 per requested category ({categories}), as the JSON schema. "
+            "Each candidate must include one or more citation_indices corresponding to the source list returned by Sonar."
+        )
+    else:
+        system_prompt = (
+            "Recommend Korean blog topics only from the provided search results. "
+            "Follow the JSON Schema exactly. Do not write URLs; put only Sonar's "
+            "1-based source numbers in citation_indices."
+        )
+        user_prompt = (
+            "Find recent Korean news and community discussions from the last 30 days about "
+            "these six areas: practical household tips (생활꿀팁); Korean government support and civil services (정부지원·민원); "
+            "loans and financial products (대출·금융); tax filings and tax refunds (세금·환급); public transport and card benefits (교통·카드혜택); "
+            "and travel discounts and recommendations (여행·할인). Identify current issues or timely how-to topics "
+            "that Korean readers would search for. Return up to 12 Korean candidate topics, at most "
+            f"2 per requested category ({categories}), as the JSON schema. Each candidate must include "
+            "one or more citation_indices corresponding to the source list returned by Sonar."
+        )
+
     return [
-        {
-            "role": "system",
-            "content": (
-                "Recommend Korean blog topics only from the provided search results. "
-                "Follow the JSON Schema exactly. Do not write URLs; put only Sonar's "
-                "1-based source numbers in citation_indices."
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                "Find recent Korean news and community discussions from the last 30 days about "
-                "these six areas: Hometax tax filing, refunds, and deductions; Korean government "
-                "policy benefits; Government24 public services; court or legal-life issues; practical "
-                "household tips; and Korea travel tips. Identify current issues or timely how-to topics "
-                "that Korean readers would search for. Return up to 12 Korean candidate topics, at most "
-                f"2 per requested category ({categories}), as the JSON schema. Each candidate must include "
-                "one or more citation_indices corresponding to the source list returned by Sonar."
-            ),
-        },
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
     ]
 
 

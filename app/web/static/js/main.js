@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSubmitGenerate = document.getElementById('btn-submit-generate');
     const generationMessage = document.getElementById('generation-message');
     const btnDiscoverTopics = document.getElementById('btn-discover-topics');
+    const chkFocusSns = document.getElementById('chk-focus-sns');
     const topicCandidateMessage = document.getElementById('topic-candidate-message');
     const topicCandidateList = document.getElementById('topic-candidate-list');
     let draftGenerationInProgress = false;
@@ -438,11 +439,16 @@ document.addEventListener('DOMContentLoaded', () => {
         btnDiscoverTopics.disabled = true;
         btnDiscoverTopics.innerHTML = '<span class="btn-icon">⏳</span> 주제 수집 중...';
         try {
-            const res = await fetch('/api/topic-candidates/discover', { method: 'POST' });
+            const focusSns = chkFocusSns ? chkFocusSns.checked : false;
+            const res = await fetch('/api/topic-candidates/discover', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ focus_sns: focusSns })
+            });
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || '주제 수집 실패');
             renderTopicCandidates(data.candidates || []);
-            showTopicCandidateMessage(`✅ ${data.count}개의 주제 후보를 저장했습니다.`, 'success');
+            showTopicCandidateMessage(`✅ ${data.count}개의 주제 후보를 저장했습니다.${focusSns ? ' (커뮤니티&SNS 전용)' : ''}`, 'success');
         } catch (err) {
             showTopicCandidateMessage(`⚠️ 주제 수집 오류: ${err.message}`, 'error');
         } finally {
