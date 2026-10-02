@@ -45,6 +45,10 @@ storage/*
 !storage/tax-refund.png
 !storage/traffic-card.png
 !storage/travel-discount.png
+!storage/legal-dispute.png
+!storage/insurance-claim.png
+!storage/car-rental.png
+!storage/stock-crypto.png
 
 # IDE 및 OS 임시 파일
 .idea/

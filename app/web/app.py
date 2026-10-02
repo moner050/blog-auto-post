@@ -22,6 +22,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.content.static import StaticArticleInput, register_private_article
 from app.content.thumbnails import get_thumbnail_for_category
+from app.content.internal_links import attach_internal_links_to_body
 from app.core.settings import Settings
 from app.db.models import (
     Article,
@@ -501,11 +502,17 @@ def generate_topic_candidate_article(candidate_id: int) -> dict[str, Any]:
                     "article_id": current.article_id,
                     "message": "이미 생성된 글입니다.",
                 }
+            final_body_html = attach_internal_links_to_body(
+                generated.body_html,
+                session=session,
+                category=current.category,
+                exclude_title=generated.title,
+            )
             registered = register_private_article(
                 session,
                 StaticArticleInput(
                     title=generated.title,
-                    body_html=generated.body_html,
+                    body_html=final_body_html,
                     tags=generated.tags,
                     category=current.category,
                     target_blog_name=settings.tistory_expected_blog_name,
@@ -738,11 +745,17 @@ def generate_article_endpoint(payload: GenerateArticleRequest) -> dict[str, Any]
         thumbnail = get_thumbnail_for_category(target_category, payload.thumbnail_path)
 
         with session_factory() as session:
+            final_body_html = attach_internal_links_to_body(
+                generated.body_html,
+                session=session,
+                category=target_category,
+                exclude_title=generated.title,
+            )
             registered = register_private_article(
                 session,
                 StaticArticleInput(
                     title=generated.title,
-                    body_html=generated.body_html,
+                    body_html=final_body_html,
                     tags=generated.tags,
                     category=target_category,
                     target_blog_name=settings.tistory_expected_blog_name,

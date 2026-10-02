@@ -12,6 +12,7 @@ from alembic.config import Config
 from sqlalchemy import select
 import uvicorn
 
+from app.content.internal_links import attach_internal_links_to_body
 from app.content.static import StaticArticleInput, register_private_article
 from app.content.thumbnails import get_thumbnail_for_category
 from app.core.logging import configure_json_logging, log_event
@@ -190,11 +191,17 @@ def main() -> None:
             generated = generator.generate(args.topic, category=target_category)
             thumbnail_path = get_thumbnail_for_category(target_category, args.thumbnail)
 
+            final_body_html = attach_internal_links_to_body(
+                generated.body_html,
+                session=session,
+                category=target_category,
+                exclude_title=generated.title,
+            )
             registered = register_private_article(
                 session,
                 StaticArticleInput(
                     title=generated.title,
-                    body_html=generated.body_html,
+                    body_html=final_body_html,
                     tags=generated.tags,
                     category=target_category,
                     target_blog_name=settings.tistory_expected_blog_name,

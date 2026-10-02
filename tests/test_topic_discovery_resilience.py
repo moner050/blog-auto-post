@@ -20,7 +20,7 @@ URLS = [f"https://news.example.com/article/{n}" for n in range(1, 7)]
 def candidate(n: int = 1, **overrides: object) -> dict:
     return {
         "topic": f"주제 {n}번 후보",
-        "category": "생활꿀팁",
+        "category": "법률·합의·분쟁",
         "reason": f"이유 {n}",
         "citation_indices": [1],
         **overrides,
@@ -118,21 +118,21 @@ def test_search_result_urls_are_used_when_the_citation_list_is_empty() -> None:
 @pytest.mark.parametrize(
     "written",
     [
-        "정부지원/민원",
-        "정부지원 · 민원",
-        "정부지원ㆍ민원",  # U+318D: 정규화하면 한글 모음으로 바뀌는 점
-        "정부지원・민원",
-        "정부지원･민원",  # 반각 가타카나 가운뎃점
-        "정부지원／민원",  # 전각 슬래시: 정규화한 뒤에야 구분 기호가 된다
-        "정부지원，민원",
-        " 정부지원·민원 ",
-        "정부지원 민원",
+        "법률/합의/분쟁",
+        "법률 · 합의 · 분쟁",
+        "법률ㆍ합의ㆍ분쟁",  # U+318D: 정규화하면 한글 모음으로 바뀌는 점
+        "법률・합의・분쟁",
+        "법률･합의･분쟁",  # 반각 가타카나 가운뎃점
+        "법률／합의／분쟁",  # 전각 슬래시: 정규화한 뒤에야 구분 기호가 된다
+        "법률，합의，분쟁",
+        " 법률·합의·분쟁 ",
+        "법률 합의 분쟁",
     ],
 )
 def test_category_spelling_variants_map_to_the_allowed_name(written: str) -> None:
     [topic] = discover([candidate(category=written)])
 
-    assert topic.category == "정부지원·민원"
+    assert topic.category == "법률·합의·분쟁"
 
 
 @pytest.mark.parametrize("written", ["경제", "", None, 7, "정부지원 및 민원", "생활"])
@@ -290,6 +290,6 @@ def test_a_recorded_agent_api_response_flows_through_discovery() -> None:
     found = TopicDiscoverer(client).discover()
 
     assert [(topic.category, [source["url"] for source in topic.sources]) for topic in found] == [
-        ("대출·금융", ["https://news.example.com/article/1", "https://news.example.com/article/3"]),
-        ("세금·환급", ["https://news.example.com/article/2"]),
+        ("대출·부채·금융", ["https://news.example.com/article/1", "https://news.example.com/article/3"]),
+        ("세금·환급·절세", ["https://news.example.com/article/2"]),
     ]

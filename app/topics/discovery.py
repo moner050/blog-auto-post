@@ -25,12 +25,13 @@ MAX_RAW_CANDIDATES = 36
 MAX_TOPIC_CHARS = 200
 
 ALLOWED_CATEGORIES = (
-    "생활꿀팁",
-    "정부지원·민원",
-    "대출·금융",
-    "세금·환급",
-    "교통·카드혜택",
-    "여행·할인",
+    "법률·합의·분쟁",
+    "대출·부채·금융",
+    "보험·보상·청구",
+    "세금·환급·절세",
+    "주식·코인·투자",
+    "차량·리스·렌트",
+    "여행·특가·예약",
 )
 
 TOPIC_DISCOVERY_RESPONSE_FORMAT: dict[str, Any] = {
@@ -66,11 +67,13 @@ TOPIC_DISCOVERY_RESPONSE_FORMAT: dict[str, Any] = {
 }
 
 RANDOM_SEARCH_ANGLES = [
-    "recent loan regulations, ISA tax-saving account updates, and real estate/housing policy changes",
-    "new government subsidies, civil service updates, and practical money-saving financial hacks",
-    "trending community discussions, real consumer reactions, and viral lifestyle tips",
-    "transportation and credit card benefit perks, app shortcuts, and seasonal travel discounts",
-    "emerging consumer issues, hot policy debates, and high-search-volume practical how-to guides",
+    "recent legal disputes, settlement money precedents, fraud victim remedies, and lawyer consultation cases (such as Lawtalk/court rulings)",
+    "health insurance claim refusals, car accident fault dispute settlements, and loss adjuster compensation tips",
+    "refinancing low-interest loan comparison, DSR loan regulations, debt consolidation, and credit recovery",
+    "comprehensive income tax return refund hacks, real estate capital gains tax-saving tips, and hidden tax refunds",
+    "US stock ETF dividend investing strategies, Bitcoin/crypto market trends, cryptocurrency exchange fee comparisons, and IPO subscription tips",
+    "long-term car rental vs lease quotation comparisons, used car inspection cautions, and vehicle repair cost reduction",
+    "budget airline ticket booking hacks, hotel OTA discount promo codes, and currency exchange travel card benefits",
 ]
 
 
@@ -164,8 +167,10 @@ def _build_messages(
             f"Search for real-time trending online community discussions, forum posts, viral social media trends, and news from the last 7 days as of {current_date_str} "
             "(such as DCInside, Clien, Ppomppu, Ruliweb, FMKorea, Blind, Naver Cafe, Instagram, YouTube, X/Twitter). "
             f"Explore current hot topics including: {random_angle}. "
-            "Craft highly engaging, clickworthy, and viral Korean topic titles that compel readers to click—including recent loan regulations (대출 규제/DSR/LTV), ISA tax-saving account updates (ISA 개정), "
-            "real estate policies (부동산/주택 정책), government subsidies (정부지원·민원), tax refunds (세금·환급), card/transport perks (교통·카드혜택), travel discounts (여행·할인), and practical life hacks (생활꿀팁). "
+            "Craft highly engaging, clickworthy, and viral Korean topic titles that compel readers to click—including recent legal disputes & settlement money precedents (법률·합의·분쟁), "
+            "loan regulations & refinancing comparisons (대출·부채·금융), insurance claim refusal & compensation tips (보험·보상·청구), "
+            "tax refunds & tax-saving strategies (세금·환급·절세), US stocks & Bitcoin/crypto investing strategies (주식·코인·투자), "
+            "long-term car rental/lease & used car advice (차량·리스·렌트), and budget flight/hotel promo booking hacks (여행·특가·예약). "
         )
     else:
         system_prompt = (
@@ -175,8 +180,10 @@ def _build_messages(
         user_prompt = (
             f"Find hot Korean news, policy updates, and trending discussions from the last 7 days as of {current_date_str}. "
             f"Explore key current issues such as: {random_angle}. "
-            "Craft high-CTR, viral, and catchy Korean topic titles that readers cannot resist clicking—including recent loan regulations (대출 규제/DSR), ISA account updates (ISA 세제 혜택), "
-            "real estate policies (부동산 정책), government support (정부지원·민원), tax refunds (세금·환급), card/transport perks (교통·카드혜택), travel discounts (여행·할인), and practical daily tips (생활꿀팁). "
+            "Craft high-CTR, viral, and catchy Korean topic titles that readers cannot resist clicking—including recent legal disputes & court rulings (법률·합의·분쟁), "
+            "loan interest rate comparison & refinancing (대출·부채·금융), health/car insurance compensation guides (보험·보상·청구), "
+            "income tax refunds & tax reduction (세금·환급·절세), stock dividend & crypto trading tips (주식·코인·투자), "
+            "car rental/lease quotes & inspection (차량·리스·렌트), and flight/hotel reservation discounts (여행·특가·예약). "
         )
 
     if novelty:

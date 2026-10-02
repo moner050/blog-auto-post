@@ -1,0 +1,23 @@
+plugins {
+    id 'base'
+}
+
+description = "Tistory Blog Auto Post Automation System"
+
+// 파이썬 pytest 테스트 실행 태스크
+task test(type: Exec) {
+    description = "Run Python pytest test suite"
+    group = "verification"
+    workingDir = projectDir
+    commandLine "${projectDir}/.venv/Scripts/python.exe", "-m", "pytest"
+}
+
+// 썸네일 및 주제 탐색 단위 테스트 태스크
+task testDiscovery(type: Exec) {
+    description = "Run Thumbnail & Topic Discovery tests"
+    group = "verification"
+    workingDir = projectDir
+    commandLine "${projectDir}/.venv/Scripts/python.exe", "-m", "pytest", "tests/test_thumbnails.py", "tests/test_topic_discovery.py", "tests/test_topic_discovery_resilience.py"
+}
+
+check.dependsOn test

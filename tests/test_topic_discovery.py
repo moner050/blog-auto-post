@@ -26,14 +26,14 @@ def test_discoverer_keeps_valid_unique_candidates_and_maps_citations() -> None:
     client.completion_response.return_value = sonar_response(
         [
             {
-                "topic": "정부지원 청년도약계좌 신청 방법",
-                "category": "정부지원·민원",
+                "topic": "교통사고 형사합의 절차 및 판례 가이드",
+                "category": "법률·합의·분쟁",
                 "reason": "최근 이용 문의가 늘고 있습니다.",
                 "citation_indices": [1, 2],
             },
             {
-                "topic": "  정부지원 청년도약계좌   신청 방법  ",
-                "category": "정부지원·민원",
+                "topic": "  교통사고 형사합의 절차 및 판례 가이드  ",
+                "category": "법률·합의·분쟁",
                 "reason": "중복 후보입니다.",
                 "citation_indices": [1],
             },
@@ -45,7 +45,7 @@ def test_discoverer_keeps_valid_unique_candidates_and_maps_citations() -> None:
             },
             {
                 "topic": "잘못된 출처 번호",
-                "category": "생활꿀팁",
+                "category": "주식·코인·투자",
                 "reason": "출처 번호가 존재하지 않습니다.",
                 "citation_indices": [3],
             },
@@ -55,15 +55,15 @@ def test_discoverer_keeps_valid_unique_candidates_and_maps_citations() -> None:
     discovered = TopicDiscoverer(client).discover()
 
     assert len(discovered) == 1
-    assert discovered[0].topic == "정부지원 청년도약계좌 신청 방법"
+    assert discovered[0].topic == "교통사고 형사합의 절차 및 판례 가이드"
     assert discovered[0].sources == [
         {"title": "뉴스 근거", "url": "https://news.example.com/topic"},
         {"title": "커뮤니티 근거", "url": "https://community.example.com/topic"},
     ]
     assert client.completion_response.call_args.kwargs["search_recency_filter"] == "week"
     assert client.completion_response.call_args.kwargs["search_language_filter"] == ["ko"]
-    assert "loan regulations" in client.completion_response.call_args.kwargs["messages"][1]["content"]
-    assert "정부지원·민원" in client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "legal disputes" in client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "법률·합의·분쟁" in client.completion_response.call_args.kwargs["messages"][1]["content"]
 
 
 def test_discoverer_supports_focus_sns_option() -> None:
@@ -71,8 +71,8 @@ def test_discoverer_supports_focus_sns_option() -> None:
     client.completion_response.return_value = sonar_response(
         [
             {
-                "topic": "클리앙/뽐뿌 핫딜 알뜰폰 요금제 비교",
-                "category": "생활꿀팁",
+                "topic": "미국 배당 ETF 월배당 포트폴리오 비교",
+                "category": "주식·코인·투자",
                 "reason": "커뮤니티에서 실시간 관심도가 매우 높습니다.",
                 "citation_indices": [2],
             }
@@ -93,9 +93,9 @@ def test_discoverer_novelty_mode_uses_high_temperature_and_unique_prompt() -> No
     client.completion_response.return_value = sonar_response(
         [
             {
-                "topic": "에어컨 실외기 셀프 청소로 전기세 30% 절약하는 법",
-                "category": "생활꿀팁",
-                "reason": "남들이 잘 모르는 틈새 절약 팁입니다.",
+                "topic": "실손보험 도수치료 청구 거절 시 금감원 민원 대처법",
+                "category": "보험·보상·청구",
+                "reason": "남들이 잘 모르는 틈새 보상 팁입니다.",
                 "citation_indices": [1],
             }
         ]
@@ -115,21 +115,21 @@ def test_discoverer_passes_existing_topics_exclusion_to_prompt() -> None:
         [
             {
                 "topic": "새로운 독창적 주제",
-                "category": "생활꿀팁",
+                "category": "주식·코인·투자",
                 "reason": "기존 주제와 전혀 다릅니다.",
                 "citation_indices": [2],
             }
         ]
     )
 
-    existing = ["정부지원 청년도약계좌 신청 방법", "여름 전기세 아끼는 팁"]
+    existing = ["교통사고 형사합의 절차 및 판례 가이드", "미국 배당 ETF 월배당 포트폴리오 비교"]
     discovered = TopicDiscoverer(client).discover(existing_topics=existing)
 
     assert len(discovered) == 1
     user_prompt = client.completion_response.call_args.kwargs["messages"][1]["content"]
     assert "avoid exact duplicate topics" in user_prompt
-    assert "정부지원 청년도약계좌 신청 방법" in user_prompt
-    assert "여름 전기세 아끼는 팁" in user_prompt
+    assert "교통사고 형사합의 절차 및 판례 가이드" in user_prompt
+    assert "미국 배당 ETF 월배당 포트폴리오 비교" in user_prompt
 
 
 def test_discoverer_rejects_empty_valid_result() -> None:
@@ -138,7 +138,7 @@ def test_discoverer_rejects_empty_valid_result() -> None:
         [
             {
                 "topic": "출처 없는 후보",
-                "category": "여행·할인",
+                "category": "여행·특가·예약",
                 "reason": "근거가 없습니다.",
                 "citation_indices": [],
             }
@@ -157,7 +157,7 @@ def test_discoverer_rejects_non_http_citation_url() -> None:
                 "candidates": [
                     {
                         "topic": "안전하지 않은 링크 후보",
-                        "category": "생활꿀팁",
+                        "category": "차량·리스·렌트",
                         "reason": "잘못된 URL입니다.",
                         "citation_indices": [1],
                     }

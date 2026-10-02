@@ -162,3 +162,18 @@ def test_revision_prompt_lists_the_issues_and_embeds_the_draft() -> None:
     assert "[고칠 문제]\n1. 첫 번째 문제다.\n2. 두 번째 문제다." in prompt
     assert prompt.endswith("[초안]\n<article_title>제목</article_title>")
     assert "새로운 사실·숫자·링크를 추가하지 않는다" in prompt and "추가 웹 검색 없이" in prompt
+
+
+def test_user_prompt_includes_knowledge_action_50_50_rule(mini_profile: StyleProfile) -> None:
+    prompt = build_user_prompt(ArticleRequest(topic="교통사고 형사합의 절차"), mini_profile, TODAY)
+
+    assert "지식 50% + 행동 50% 원칙" in prompt
+    assert "객관적 지식(50%)을 설명하고" in prompt
+    assert "손해를 피하고 권리를 찾는 실질적 행동 요령·비교 체크리스트" in prompt
+
+
+def test_system_prompt_includes_blockquote_cta_rule(mini_profile: StyleProfile) -> None:
+    prompt = build_system_prompt(mini_profile)
+
+    assert "<blockquote>" in prompt
+    assert "핵심 체크" in prompt

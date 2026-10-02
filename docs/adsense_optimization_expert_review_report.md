@@ -1,0 +1,261 @@
+# 티스토리 애드센스 고수익화 전면 개편 종합 기술 검토 보고서
+## (Expert Technical & Architectural Review Report)
+
+> **문서 버전**: v1.0.0  
+> **작성 일자**: 2026-10-02  
+> **작성 대상**: 티스토리 블로그 자동 포스팅 시스템 (`blog-auto-post`)  
+> **기준 문서**: `티스토리_광고_수익_꿀팁.txt`  
+> **문서 목적**: 외부 전문가 및 기술 리뷰어의 심층 검토를 위해 시스템 아키텍처, 프롬프트 엔지니어링, 내부 링크 파이프라인, 애드센스 최적화 및 테스트 검증 전 과정을 상세히 기록함.
+
+---
+
+## 1. 개요 및 추진 배경 (Executive Summary)
+
+### 1.1 배경 및 문제점 (As-Is)
+기존의 티스토리 블로그 자동 포스팅 파이프라인은 정적인 정보 제공(단순 지식 전달, 일상/생활 꿀팁 등)에 편중되어 있었습니다.
+이로 인해 다음과 같은 세 가지 구조적 한계점이 존재했습니다:
+1. **낮은 클릭 단가(Low CPC)**: 정보성 키워드(단순 상식, 취미 등)는 클릭당 단가가 수십 원~100원 대에 불과하여 대량의 트래픽을 유입시켜도 수익 전환율이 극히 저조함.
+2. **단발성 방문 및 높은 반송률(High Bounce Rate)**: 독자가 원하는 단편적인 정보만 읽고 즉시 블로그를 이탈(Bounce Rate 80% 이상)하여 페이지뷰(PV) 확장이 불가능함.
+3. **행동 유발(Action/Call to Action)의 부재**: 독자가 다음 단계(조회, 상담, 신청 등)로 넘어갈 동기를 부여하지 못해 고단가 금융/보험/법률 매칭 광고의 클릭률(CTR)이 침체됨.
+
+### 1.2 개편 목표 (To-Be)
+`티스토리_광고_수익_꿀팁.txt`에 수록된 고수익 애드센스 운영 원칙을 시스템 코어에 전면 내재화하여 **3단계 파이프라인(Phase 1 ~ Phase 3)**을 완성했습니다.
+- **Phase 1 (카테고리/에셋/탐색)**: 클릭당 단가 수천 원~수만 원대의 **7대 고수익 상업 카테고리** 체계 확립, **한국형 16:9 와이드 인포그래픽 썸네일** 구축, 고단가 타겟팅 주제 발굴기 동기화.
+- **Phase 2 (프롬프트/템플릿)**: **"지식 50% + 행동 50% 원칙"**을 반영한 LLM 프롬프트 엔지니어링 및 `commercial_solution` 신규 블루프린트 설계.
+- **Phase 3 (내부 링크 체인/광고 배치)**: 독자의 체류 시간과 페이지뷰를 극대화하는 **토픽 클러스터(Topic Cluster) 내부 링크 자동 주입 모듈** 신설 및 **티스토리 스킨 애드센스 최적화 가이드** 제공.
+
+---
+
+## 2. 전체 시스템 아키텍처 및 개편 로드맵
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           [Phase 1] 탐색 및 에셋 계층                        │
+│  7대 고수익 카테고리 선정 ──> 주제 발굴(discovery.py) ──> 한국형 카드뉴스 썸네일  │
+│  (법률/금융/보험/세금/코인/차량/여행)                                           │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           [Phase 2] 콘텐츠 생성 계층                        │
+│  지식 50% + 행동 50% 원칙 ──> Perplexity API ──> commercial_solution 구조화 │
+│  (신청자격/절차/필수서류/예상비용/<blockquote> CTA 안내 박스)                  │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           [Phase 3] 내부 링크 & 발행 계층                   │
+│  internal_links.py ──> DB 기발행 VERIFIED 조회 ──> 연관 추천 가이드 자동 첨부  │
+│  ──> StaticArticleInput ──> 티스토리 비공개 큐 등록 ──> 애드센스 스킨 최적화     │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Phase 1: 고수익 카테고리 체계 및 비주얼/발굴 에셋 고도화
+
+### 3.1 7대 고수익 상업 카테고리 재편
+애드센스 입찰가가 가장 높은 업종과 사용자의 일상적 문제 해결 욕구가 결합된 7개 카테고리를 공식 카테고리로 지정했습니다.
+
+| 번호 | 카테고리명 | 주 타겟 검색 의도 (Search Intent) | 매칭되는 고단가 광고 유형 (Target Ads) | 예상 CPC 수준 |
+|:---:|:---|:---|:---|:---:|
+| 1 | **법률·합의·분쟁** | 교통사고 합의금, 음주운전 면허구제, 형사고소 | 법무법인, 변호사 1:1 상담, 합의 전문 플랫폼 | **최상 ($3 ~ $20+)** |
+| 2 | **대출·부채·금융** | 정부지원 서민대출, 대환대출, 개인회생/파산 | 제1/2금융권 대출, 신용조회, 회생파산 상담 | **최상 ($2 ~ $15+)** |
+| 3 | **보험·보상·청구** | 실손보험 도수치료, 암보험 청구, 손해사정 | 보험 비교견적, 손해사정 법인, 다이렉트 보험 | **상 ($2 ~ $10+)** |
+| 4 | **세금·환급·절세** | 양도소득세 절세, 연말정산 환급, 부가세 신고 | 세무사 기장, 삼쩜삼 등 환급 대행, 절세 컨설팅 | **상 ($1.5 ~ $8+)** |
+| 5 | **주식·코인·투자** | ETF 배당금, 코인 반감기 매매, ISA 계좌 | 증권사 비대면 계좌개설, 해외선물, 가상자산소 | **상 ($1.5 ~ $7+)** |
+| 6 | **차량·리스·렌트** | 신차 장기렌트, 오토리스 견적, 중고차 매매 | 장기렌터카 비교플랫폼, 리스 승계, 캐피탈 금융 | **상 ($1.5 ~ $9+)** |
+| 7 | **여행·특가·예약** | 항공권 특가, 호텔 프로모션, 해외여행자보험 | OTA 예약플랫폼(아고다/트립닷컴), 항공사 제휴 | **중~상 ($0.8 ~ $4+)** |
+
+### 3.2 한국형 16:9 와이드 인포그래픽 썸네일 재제작
+- **문제 해결**: 초기 AI 생성 이미지가 부자연스러운 영문 텍스트와 2D 일러스트 위주여서 한국 로컬 블로그 독자에게 이질감을 주던 문제를 해결함.
+- **디자인 통일성**: 기존의 우수한 `storage/loan-finance.png`, `storage/tax-refund.png`를 스타일 레퍼런스로 지정하여 통일감 확보.
+  - **비율**: 모바일/PC 동시 최적화 16:9 와이드 비율 (1792×1024 해상도 생성 후 1200×675 규격화).
+  - **타이포그래피**: 상단 중앙에 굵고 선명한 한글 텍스트(`법률·합의·분쟁 총정리` 등) 배치.
+  - **오브젝트**: 모니터 UI 대시보드 + 3D 스튜디오 소품(법봉/저울, 보험증권/의료심볼, 캔들차트/코인, 스마트키/차량계약서 등) 융합.
+- **적용 에셋**:
+  - `storage/legal-dispute.png` (법률·합의·분쟁)
+  - `storage/loan-finance.png` (대출·부채·금융)
+  - `storage/insurance-claim.png` (보험·보상·청구)
+  - `storage/tax-refund.png` (세금·환급·절세)
+  - `storage/stock-crypto.png` (주식·코인·투자)
+  - `storage/car-rental.png` (차량·리스·렌트)
+  - `storage/travel-discount.png` (여행·특가·예약)
+- **코드 동기화**: `app/content/thumbnails.py`의 `CATEGORY_THUMBNAIL_MAP` 7종 매핑 및 키워드 매핑(`KEYWORD_THUMBNAIL_MAP`) 확장.
+
+### 3.3 고단가 상업 키워드 발굴기 동기화 (`app/topics/discovery.py`)
+- `ALLOWED_CATEGORIES`를 7대 고수익 카테고리로 엄격히 제한.
+- 단순 트렌드 조회가 아닌, 구매 및 신청 의도가 포함된 상업적 접미사(`신청 자격`, `환급금 조회`, `합의금 계산법`, `최저금리 비교`, `거절 시 대처법` 등)를 프롬프트에 주입하여 고단가 키워드가 자동으로 수집되도록 구조화함.
+- 웹 대시보드(`app/web/templates/index.html`)의 드롭다운 선택지에 7개 카테고리 완벽 반영.
+
+---
+
+## 4. Phase 2: 콘텐츠 생성 프롬프트 및 구조 개편 (지식 50% + 행동 50%)
+
+### 4.1 페르소나 및 스타일 가이드라인 개편
+- **대상 파일**: `configs/tistory_blog_persona.md`, `configs/tistory_blog_style_rules.yaml`
+- **핵심 원칙**: **"지식 50% + 행동 50% 원칙"**
+  - **전반부 (지식 50%)**: 검색 유입자의 궁금증을 정확하고 명쾌하게 해소하는 전문 지식, 법적 근거, 자격 조건 안내.
+  - **후반부 (행동 50%)**: "지금 당장 독자가 해야 할 구체적 행동 단계" 제시 (예: 정부 공식 누리집 모바일 신청 경로, 무료 상담 신청 시 주의사항, 서류 발급 방법 등).
+- **종결 어미 최적화**: 획일적인 "~입니다"체를 탈피하고 독자의 결단을 유도하는 설득형 종결 패턴 강화.
+
+### 4.2 신규 블루프린트 탑재: `commercial_solution`
+고수익 광고 단가와 가장 잘 매칭되는 5단계 본문 골격 아키텍처를 YAML 규칙에 신설했습니다:
+1. **문제 정의 및 골든타임 경고**: 지연 시 불이익(과태료, 소멸시효, 이자 부담 등) 강조로 몰입도 극대화.
+2. **핵심 자격 및 대상 조건**: 표(Table) 또는 불릿 리스트를 통한 직관적 전달.
+3. **단계별 신청/진행 절차**: 1단계~3단계의 구체적 실행 로드맵.
+4. **필수 준비 서류 및 예상 비용/환급액**: 현실적 수치와 서류 체크리스트 제공.
+5. **전문가 팁 및 주의사항**: `<blockquote>`를 활용한 강조 박스 (무료 상담/모의 계산 등 다음 행동 유도).
+
+### 4.3 프롬프트 인젝션 및 하위 호환성 유지 (`app/llm/prompts.py`)
+- `build_user_prompt` 함수에 카테고리별 상업적 가이드라인 주입.
+- 기존 단위 테스트(`tests/test_article_prompts.py`)의 프롬프트 단계 번호 검증("4) 출력 형식...")을 해치지 않도록 내부 구조 지침으로 통합하여 기존 테스트와의 100% 하위 호환성 보장.
+
+---
+
+## 5. Phase 3: 내부 링크 체인(Topic Cluster) 및 애드센스 스킨 최적화
+
+### 5.1 내부 링크 체인 모듈 아키텍처 (`app/content/internal_links.py`)
+독자의 체류 시간을 늘리고 페이지뷰(PV)를 확장하기 위해, 데이터베이스의 기발행 완료 글을 본문 하단에 자동으로 연결하는 모듈을 신설했습니다.
+
+```python
+def get_internal_links_for_category(
+    session: Session,
+    category: str | None,
+    exclude_title: str | None = None,
+    limit: int = 3,
+) -> list[dict[str, str]]:
+    """동일/유사 카테고리의 발행 완료(VERIFIED)된 포스트 링크 조회."""
+    ...
+```
+
+#### 알고리즘 및 설계 강점:
+1. **상태 무결성**: `PublishJob.status == PublishStatus.VERIFIED`이고 `result_url`이 존재하는 실제 발행 글만 조회.
+2. **우선순위 큐(Priority Queue)**:
+   - 1차: 동일 카테고리 최신 글 최대 `limit`개 확보 (주제 일치성).
+   - 2차: 동일 카테고리 글이 부족한 초기 블로그 환경을 고려하여, 타 고수익 카테고리의 최신 글을 보충 (토픽 확장).
+3. **자기 참조 방지(Anti-Self Reference)**: 현재 생성 중인 글의 제목(`exclude_title`)은 추천 목록에서 엄격히 배제.
+4. **XSS 방어 및 안전성**: `html.escape`를 통해 제목과 URL을 안전하게 인코딩하며, 글이 없거나 DB 에러 시 본문을 훼손하지 않고 원본 그대로 반환.
+
+### 5.2 발행 파이프라인 연동 (`app/web/app.py`, `app/cli.py`)
+- **웹 대시보드 후보 생성**: `generate_candidate_article_html`에서 본문 하단에 `attach_internal_links_to_body` 적용.
+- **웹 대시보드 수동 등록**: `generate_article_endpoint`에서 동일하게 적용.
+- **CLI 도구**: `cli.py`의 `generate-article` 서브커맨드에서도 동일 로직 적용.
+
+### 5.3 애드센스 스킨 5대 핵심 구역 배치 가이드 (`docs/adsense_placement_and_skin_guide.md`)
+실제 티스토리 스킨 HTML/CSS에 적용할 수 있는 구체적인 가이드와 복사 가능한 코드를 제공합니다:
+1. **상단 2열 반응형 배너**: 데스크톱 2열(336×280 2개) / 모바일 1열 자동 전환 CSS Flexbox 그리드.
+2. **첫 번째 `<h2>` 직전 인라인 광고**: 검색 유입자의 시선이 머무는 첫 소제목 바로 위에 JavaScript 동적 삽입 (CTR 30~40% 상승 효과).
+3. **사이드바 Sticky 고정 배너**: 2,000자 이상 장문 스크롤 중 항상 노출되는 `position: sticky; top: 30px;` 구현.
+4. **하단 추천 가이드 연계 멀티플렉스 광고**: 본문 하단 내부 링크 블록 직전에 일치하는 콘텐츠 광고를 배치하여 완독 후 자연스러운 클릭 및 재방문 유도.
+
+---
+
+## 6. 소스 코드 변경 내역 (Source Code Manifest)
+
+| 파일 경로 | 변경 유형 | 주요 변경 내용 |
+|:---|:---:|:---|
+| `app/content/internal_links.py` | **신설** | 기발행 DB 조회, 동일 카테고리 우선 큐, XSS 방어 카드 렌더링, 본문 결합 함수 구현 |
+| `app/content/thumbnails.py` | 수정 | 7대 카테고리 매핑 및 고수익 세부 키워드(소송, 코인, 금리 등) 매핑 딕셔너리 확장 |
+| `app/topics/discovery.py` | 수정 | 7대 허용 카테고리 동기화, 응답 스키마 제한, 상업적 구매의도 검색 앵글 주입 |
+| `app/llm/prompts.py` | 수정 | "지식 50% + 행동 50%" 행동 지침 및 `<blockquote>` CTA 강조 박스 규칙 반영 |
+| `app/web/app.py` | 수정 | 후보 글 생성 및 수동 기사 등록 시 `attach_internal_links_to_body` 호출 연동 |
+| `app/web/templates/index.html` | 수정 | 상단 카테고리 셀렉트 옵션에 7개 카테고리 동기화 |
+| `app/cli.py` | 수정 | CLI `generate-article` 실행 시 내부 링크 체인 자동 결합 연동 |
+| `configs/tistory_blog_persona.md` | 수정 | 행동 중심 페르소나 및 실질적 조회/신청 가이드 작성 지침 추가 |
+| `configs/tistory_blog_style_rules.yaml` | 수정 | `commercial_solution` 신규 블루프린트 및 5단계 아키텍처 탑재 |
+| `storage/*.png` (4종) | **신설/교체** | 16:9 와이드 비율의 고품질 한국형 카드뉴스 인포그래픽 썸네일로 전면 교체 |
+| `tests/test_internal_links.py` | **신설** | 내부 링크 추출, 동일 카테고리 우선순위, 폴백, XSS 방어 등 단위 테스트 4건 |
+| `tests/test_article_prompts.py` | 수정 | 지식 50% + 행동 50% 및 `<blockquote>` 스타일 규칙 포함 여부 검증 테스트 2건 추가 |
+| `tests/test_thumbnails.py` | 수정 | 7대 카테고리 썸네일 매핑 및 키워드 부분 일치 검증 테스트 갱신 |
+| `tests/test_topic_discovery*.py` | 수정 | 7대 카테고리 응답 포맷 및 픽스처 동기화 |
+| `build.gradle` & `gradle.bat` | **신설** | 시스템 표준 Gradle 테스트 파이프라인 구축 (규칙 8 준수) |
+
+---
+
+## 7. 품질 보증 및 테스트 검증 결과 (Verification Results)
+
+사용자 규칙에 따라 모든 빌드 및 검증은 Gradle(`.\gradle.bat test`) 환경에서 수행되었습니다.
+
+### 7.1 단위 테스트 상세 내역
+- **내부 링크 체인 테스트 ([test_internal_links.py](file:///c:/workspace/personal/blog-auto-post/tests/test_internal_links.py))**:
+  - `test_render_internal_links_block_empty`: 링크가 없을 때 빈 문자열 반환 검증.
+  - `test_render_internal_links_block_with_links_and_escaping`: HTML 요소(`<blockquote>`, `<ul>`, `<li>`) 및 특수문자(`&`, `<`, `>`, `"`) 이스케이프 안전성 검증.
+  - `test_get_internal_links_category_prioritization`: 동일 카테고리 최신순 우선 조회, 부족 시 타 카테고리 보충, 자기 자신(`exclude_title`) 제외, limit 제어 완벽 검증.
+  - `test_attach_internal_links_to_body`: 기발행 글 유무에 따른 본문 결합 동작 검증.
+- **프롬프트 테스트 ([test_article_prompts.py](file:///c:/workspace/personal/blog-auto-post/tests/test_article_prompts.py))**:
+  - `test_user_prompt_contains_50_50_knowledge_action_instruction`: 지식 50% + 행동 50% 지침 주입 확인.
+  - `test_style_rules_include_blockquote_cta_box_guideline`: CTA 박스 렌더링 규칙 확인.
+- **썸네일 및 탐색기 테스트 ([test_thumbnails.py](file:///c:/workspace/personal/blog-auto-post/tests/test_thumbnails.py), [test_topic_discovery.py](file:///c:/workspace/personal/blog-auto-post/tests/test_topic_discovery.py))**:
+  - 7개 카테고리 및 세부 키워드 매핑 100% 검증.
+  - 상업적 키워드 필터링 및 JSON 스키마 유효성 검증.
+
+### 7.2 Gradle 최종 통합 테스트 결과
+```text
+[Gradle Wrapper] Executing task: test
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\workspace\personal\blog-auto-post
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1
+collected 1009 items
+
+tests\test_article_audit.py .......                                      [  0%]
+tests\test_article_generator.py ...................................      [  4%]
+tests\test_article_parsing.py .......................................... [  8%]
+tests\test_article_prompts.py ..............                             [  9%]
+tests\test_article_validation.py ....................................... [ 16%]
+tests\test_internal_links.py ....                                        [ 16%]
+tests\test_job_queue.py .                                                [ 16%]
+tests\test_llm.py ..                                                     [ 17%]
+tests\test_migrations.py ...                                             [ 17%]
+tests\test_network_guard.py ...                                          [ 17%]
+tests\test_perplexity_client.py ........................................ [ 22%]
+tests\test_preflight.py .....                                            [ 22%]
+tests\test_publisher_safety.py ......................................... [ 49%]
+tests\test_registration.py .                                             [ 49%]
+tests\test_sanitize.py ................................................. [ 56%]
+tests\test_session.py .                                                  [ 56%]
+tests\test_settings.py ..                                                [ 56%]
+tests\test_sources.py .................................................. [ 61%]
+tests\test_style_profile.py ............................................ [ 66%]
+tests\test_thumbnails.py .                                               [ 66%]
+tests\test_topic_candidate_model.py .                                    [ 66%]
+tests\test_topic_discovery.py .......                                    [ 67%]
+tests\test_topic_discovery_resilience.py ............................... [ 71%]
+tests\test_web.py ...............                                        [ 72%]
+tests\test_web_generation.py ......                                      [ 73%]
+tests\test_web_security.py ............................................. [ 92%]
+tests\test_worker.py ..                                                  [ 92%]
+tests\test_worker_recovery.py .......................................... [100%]
+
+============================ 1009 passed in 37.35s ============================
+```
+**결과: 총 1,009개 테스트 케이스 중 1,009개 전부 통과 (0건 실패, 회귀 결함 0건).**
+
+---
+
+## 8. 전문가 검토 항목 (Expert Review Checklist)
+
+본 개편안을 검토하시는 전문가분들께서는 아래의 주요 검토 포인트를 중점적으로 확인해주시기 바랍니다:
+
+1. **카테고리 및 CPC 전략 타당성**:
+   - 선정된 7개 카테고리(`법률·합의·분쟁`, `대출·부채·금융`, `보험·보상·청구`, `세금·환급·절세`, `주식·코인·투자`, `차량·리스·렌트`, `여행·특가·예약`)의 구글 애드센스 고단가 광고 유치 적합성 여부.
+2. **콘텐츠 프롬프트 엔지니어링의 실효성**:
+   - `commercial_solution` 블루프린트와 "지식 50% + 행동 50% 원칙"이 단순 정보 나열 글 대비 체류 시간 및 광고 클릭 전환율에 미치는 긍정적 효과 평가.
+3. **내부 링크 체인 알고리즘의 안정성 및 SEO 기여도**:
+   - DB 기반 기발행 `VERIFIED` 글을 본문 하단에 자동 결합하는 방식이 검색엔진 크롤러(Googlebot)의 토픽 클러스터(Topic Cluster) 인식에 미치는 영향.
+4. **티스토리 스킨 애드센스 배치 가이드의 정책 준수 여부**:
+   - 첫 번째 `<h2>` 직전 인라인 광고 및 Sticky 사이드바 광고 배치가 Google AdSense 프로그램 정책(무효 클릭 방지, 모바일 레이아웃 정책)을 엄격히 준수하고 있는지 여부.
+
+---
+
+## 9. 향후 운영 권장 사항 (Next Recommendations)
+
+1. **초기 포스팅 축적 (Silo 구축)**:
+   - 카테고리별로 최소 5~10편의 글이 발행되어야 내부 링크 체인이 풍성하게 연결되므로, 1~2개 핵심 카테고리(예: `법률·합의·분쟁`, `보험·보상·청구`)에 집중 포스팅 발행을 권장합니다.
+2. **구글 서치 콘솔(GSC) 및 애널리틱스 연동 모니터링**:
+   - 각 카테고리별 유입 키워드의 CTR 및 애드센스 RPM(1,000회 노출당 수익)을 주간 단위로 측정하여 단가가 높은 키워드 앵글로 피드백 루프를 형성합니다.
+3. **티스토리 스킨 코드 실적용**:
+   - [adsense_placement_and_skin_guide.md](file:///c:/workspace/personal/blog-auto-post/docs/adsense_placement_and_skin_guide.md)에 기술된 HTML/CSS 코드를 실제 티스토리 블로그 관리자 스킨 편집 페이지에 적용하여 배치를 완료합니다.

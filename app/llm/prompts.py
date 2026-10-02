@@ -62,9 +62,18 @@ def build_user_prompt(request: ArticleRequest, profile: StyleProfile, today: dat
         if profile.mode == TECHNICAL
         else "웹 검색으로 이 주제의 공식 기관 안내(정부24·홈택스·각 기관 공식 사이트 등)와 최신 보도를 확인한다. 한국어 자료를 우선한다."
     )
+    second_step = (
+        "2) 확인된 사실만 근거로, 시스템 지시의 페르소나·구조·분량·서식 규칙에 맞춰 쓴다."
+        if profile.mode == TECHNICAL
+        else (
+            "2) 확인된 사실만 근거로, 시스템 지시의 페르소나·구조·분량·서식 규칙에 맞춰 쓴다. "
+            "[지식 50% + 행동 50% 원칙] 글 전반부는 정확한 기준·제도·판례 등 객관적 지식(50%)을 설명하고, "
+            "후반부는 독자가 손해를 피하고 권리를 찾는 실질적 행동 요령·비교 체크리스트·전문가(변호사/손해사정사/세무사 등) 무료 1차 상담 활용법 및 비교 플랫폼 활용 팁(50%)을 균형 있게 다룬다."
+        )
+    )
     steps = [
         f"1) {research}",
-        "2) 확인된 사실만 근거로, 시스템 지시의 페르소나·구조·분량·서식 규칙에 맞춰 쓴다.",
+        second_step,
     ]
     if profile.title_style == CLICKBAIT:
         if request.title_seed:
@@ -118,6 +127,7 @@ HTML 본문
 - 사용할 수 있는 태그: {tags}
 - <h1>, <html>, <body>, <img>, <script>, <style>, 인라인 style 속성을 쓰지 않고 {class_rule}마크다운 문법(##, **, ```)도 쓰지 않는다. 제목을 본문에 다시 쓰지 않는다.
 - 글자로 보여 줄 <, >, &는 &lt;, &gt;, &amp;로 쓴다(예: List&lt;String&gt;, a &amp;&amp; b). 이렇게 쓰지 않은 꺾쇠 표기는 태그로 읽혀 사라질 수 있다.
+- 본문 중간 또는 후반부에 독자의 실질적인 손해를 방지하고 실행을 돕는 핵심 요약/주의사항/상담 확인 가이드를 <blockquote>태그(예: <blockquote><strong>💡 핵심 체크:</strong> ...</blockquote>)로 1~2개 구성한다.
 - 링크는 <a href="https://...">텍스트</a> 형식으로 쓰되, 웹 검색에서 직접 확인한 주소와 공식 기관의 대표 주소(예: https://www.gov.kr)만 쓴다. 세부 경로를 추측해서 만들지 않는다. 주소를 확인하지 못했으면 링크 없이 기관·메뉴 이름만 쓴다.
 - 출처 번호([1], [2] 등)를 본문 어디에도 남기지 않는다. 번호는 <article_sources> 줄에만 쓰고, 근거로 쓰지 않은 검색 결과는 넣지 않는다.
 - '참고한 자료' 목록과 확인일 안내 문구는 시스템이 <article_sources> 번호로 글 끝에 자동으로 붙이므로 쓰지 않는다.
