@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const generationMessage = document.getElementById('generation-message');
     const btnDiscoverTopics = document.getElementById('btn-discover-topics');
     const chkFocusSns = document.getElementById('chk-focus-sns');
+    const chkFocusNovelty = document.getElementById('chk-focus-novelty');
+    const topicDiscoveryStatusBadge = document.getElementById('topic-discovery-status-badge');
     const topicCandidateMessage = document.getElementById('topic-candidate-message');
     const topicCandidateList = document.getElementById('topic-candidate-list');
     let draftGenerationInProgress = false;
@@ -68,8 +70,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tableArticlesBody.innerHTML = data.map(item => {
                 const statusBadge = getStatusBadge(item.status, item.last_error_code, item.last_error_message);
-                const publishLink = item.result_url 
-                    ? `<a href="${item.result_url}" target="_blank" style="color: var(--accent-blue);">[링크 보기]</a>` 
+                // 발행기가 만든 값이지만 속성에 그대로 넣지 않는다: http(s)만 허용하고 이스케이프한다.
+                const resultUrl = safeExternalUrl(item.result_url);
+                const publishLink = resultUrl 
+                    ? `<a href="${escapeHtml(resultUrl)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue);">[링크 보기]</a>` 
                     : '<span style="color: var(--text-secondary);">-</span>';
 
                 const retryBtn = item.status === 'DRAFT'
@@ -163,8 +167,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const res = await fetch(`/api/articles/${id}/retry`, { method: 'POST' });
-            const data = await res.json();
+            let res = await fetch(`/api/articles/${id}/retry`, { method: 'POST' });
+            let data = await res.json();
+
+            // 이미 발행됐거나 발행 중·미확인인 글은 서버가 409로 막는다(티스토리에 중복 글이 생길 수 있음).
+            // 그 위험을 한 번 더 확인받은 경우에만 ?force=true로 다시 요청한다.
+            if (res.status === 409 && data.requires_force) {
+                if (!confirm(`${data.detail}\n\n그래도 다시 등록하시겠습니까?`)) return;
+                res = await fetch(`/api/articles/${id}/retry?force=true`, { method: 'POST' });
+                data = await res.json();
+            }
 
             if (!res.ok) throw new Error(data.detail || '재등록 설정 실패');
 
@@ -196,6 +208,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 미리보기 문서. 본문 HTML은 모델이 만든 값(또는 DB에 이미 있던 값)이라 신뢰하지 않는다. 대시보드 문서에 직접 넣지 않고,
+    // 스크립트·same-origin이 모두 막힌 sandbox iframe(srcdoc)에서만 렌더링한다. 링크는 sandbox와 CSP(base-uri 'none') 때문에 동작하지 않는다.
+    function buildPreviewDocument(bodyHtml) {
+        return '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'
+            + '<style>body{margin:0;padding:1.5rem;background:#fff;color:#1e293b;font-family:sans-serif;line-height:1.6;overflow-wrap:anywhere}img{max-width:100%;height:auto}</style>'
+            + `</head><body>${bodyHtml || ''}</body></html>`;
+    }
+
     // 5. Open Preview Modal
     async function openPreviewModal(id) {
         try {
@@ -210,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tagsHtml += `<div class="alert-message error" style="margin-top: 0.5rem;">⚠️ 발행 실패 원인: [${escapeHtml(data.last_error_code || 'ERROR')}] ${escapeHtml(data.last_error_message)}</div>`;
             }
             modalTags.innerHTML = tagsHtml;
-            modalHtmlContent.innerHTML = data.body_html;
+            modalHtmlContent.srcdoc = buildPreviewDocument(data.body_html);
 
             modalPreview.classList.remove('hidden');
         } catch (err) {
@@ -237,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         btnSubmitGenerate.disabled = true;
         btnSubmitGenerate.innerHTML = '<span class="btn-icon">⏳</span> AI 생성 중...';
-        showMessage('Perplexity Sonar LLM이 실시간 웹 검색을 바탕으로 포스팅을 생성하고 있습니다. 잠시만 기다려 주세요...', 'success');
+        showMessage('Perplexity Agent API가 실시간 웹 검색을 바탕으로 포스팅을 생성하고 있습니다. 잠시만 기다려 주세요...', 'success');
 
         try {
             const res = await fetch('/api/articles/generate', {
@@ -270,8 +290,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showTopicCandidateMessage(msg, type) {
         topicCandidateMessage.textContent = msg;
-        topicCandidateMessage.className = `alert-message ${type}`;
+        topicCandidateMessage.className = `alert-message ${type} pulse`;
         topicCandidateMessage.classList.remove('hidden');
+        topicCandidateMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function safeExternalUrl(value) {
@@ -283,6 +304,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 서버가 stale로 표시한(멈춘) GENERATING 후보는 FAILED처럼 다시 생성·삭제할 수 있게 한다.
+    function isGeneratingNow(candidate) {
+        return candidate.status === 'GENERATING' && !candidate.stale;
+    }
+
+    function isRetryable(candidate) {
+        return candidate.status === 'FAILED' || (candidate.status === 'GENERATING' && candidate.stale === true);
+    }
+
+    function candidateStatusLabel(candidate) {
+        if (candidate.status === 'DRAFT_CREATED') return '글 생성 완료';
+        if (candidate.status === 'GENERATING' && candidate.stale) return '생성 멈춤';
+        return candidate.status;
+    }
+
     function renderTopicCandidates(candidates) {
         if (!candidates.length) {
             topicCandidateList.innerHTML = '<p class="empty-candidates">아직 저장된 주제 후보가 없습니다.</p>';
@@ -291,20 +327,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const candidatesById = new Map(candidates.map(candidate => [String(candidate.id), candidate]));
         const rows = candidates.map(candidate => {
-            const statusLabel = candidate.status === 'DRAFT_CREATED' ? '글 생성 완료' : candidate.status;
+            const statusLabel = candidateStatusLabel(candidate);
             let action = '';
             if (candidate.status === 'DRAFT_CREATED' && candidate.article_id) {
                 action = `
                     <button class="btn btn-secondary btn-sm btn-open-draft" data-article-id="${candidate.article_id}">👁️ 글 보기</button>
                     <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}">🗑️ 삭제</button>
                 `;
-            } else if (candidate.status === 'GENERATING') {
+            } else if (isGeneratingNow(candidate)) {
                 action = `
                     <button class="btn btn-secondary btn-sm" disabled>⏳ 글 생성 중</button>
                     <button class="btn btn-danger btn-sm" disabled>🗑️ 삭제</button>
                 `;
             } else {
-                const label = candidate.status === 'FAILED' ? '🔄 다시 글 생성' : '✍️ 이 주제로 글 생성';
+                const label = isRetryable(candidate) ? '🔄 다시 글 생성' : '✍️ 이 주제로 글 생성';
                 action = `
                     <button class="btn btn-accent btn-sm btn-generate-draft" data-candidate-id="${candidate.id}">${label}</button>
                     <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}">🗑️ 삭제</button>
@@ -370,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function openTopicCandidateModal(candidate) {
-        const statusLabel = candidate.status === 'DRAFT_CREATED' ? '글 생성 완료' : candidate.status;
+        const statusLabel = candidateStatusLabel(candidate);
         const sources = (candidate.sources || []).map(source => {
             const url = safeExternalUrl(source.url);
             if (!url) return '';
@@ -393,13 +429,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="btn btn-secondary btn-sm btn-open-draft" data-article-id="${candidate.article_id}">👁️ 글 보기</button>
                 <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}">🗑️ 삭제</button>
             `;
-        } else if (candidate.status === 'GENERATING') {
+        } else if (isGeneratingNow(candidate)) {
             topicCandidateModalActions.innerHTML = `
                 <button class="btn btn-secondary btn-sm" disabled>⏳ 글 생성 중</button>
                 <button class="btn btn-danger btn-sm" disabled>🗑️ 삭제</button>
             `;
         } else {
-            const label = candidate.status === 'FAILED' ? '🔄 다시 글 생성' : '✍️ 이 주제로 글 생성';
+            const label = isRetryable(candidate) ? '🔄 다시 글 생성' : '✍️ 이 주제로 글 생성';
             topicCandidateModalActions.innerHTML = `
                 <button class="btn btn-accent btn-sm btn-generate-draft" data-candidate-id="${candidate.id}">${label}</button>
                 <button class="btn btn-danger btn-sm btn-delete-candidate" data-candidate-id="${candidate.id}">🗑️ 삭제</button>
@@ -437,21 +473,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function discoverTopics() {
         btnDiscoverTopics.disabled = true;
-        btnDiscoverTopics.innerHTML = '<span class="btn-icon">⏳</span> 주제 수집 중...';
+        btnDiscoverTopics.classList.remove('btn-success-glow');
+        btnDiscoverTopics.innerHTML = '<span class="btn-icon">⏳</span> AI 웹 탐색 수집 중...';
+
+        if (topicDiscoveryStatusBadge) {
+            topicDiscoveryStatusBadge.textContent = '⏳ 실시간 수집 진행 중...';
+            topicDiscoveryStatusBadge.classList.remove('hidden');
+        }
+
         try {
             const focusSns = chkFocusSns ? chkFocusSns.checked : false;
+            const novelty = chkFocusNovelty ? chkFocusNovelty.checked : false;
             const res = await fetch('/api/topic-candidates/discover', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ focus_sns: focusSns })
+                body: JSON.stringify({ focus_sns: focusSns, novelty: novelty })
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || '주제 수집 실패');
             renderTopicCandidates(data.candidates || []);
-            showTopicCandidateMessage(`✅ ${data.count}개의 주제 후보를 저장했습니다.${focusSns ? ' (커뮤니티&SNS 전용)' : ''}`, 'success');
+            const tags = [focusSns ? '커뮤니티&SNS 전용' : '', novelty ? '참신·이색 주제' : ''].filter(Boolean).join(', ');
+            showTopicCandidateMessage(`🎉 성공: ${data.count}개의 주제 후보를 저장했습니다.${tags ? ` (${tags})` : ''}`, 'success');
+
+            const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            if (topicDiscoveryStatusBadge) {
+                topicDiscoveryStatusBadge.textContent = `✅ ${nowStr} 수집 완료 (${data.count}개)`;
+            }
+
+            btnDiscoverTopics.classList.add('btn-success-glow');
+            btnDiscoverTopics.innerHTML = `<span class="btn-icon">✅</span> ${data.count}개 수집 완료!`;
+
+            setTimeout(() => {
+                btnDiscoverTopics.disabled = false;
+                btnDiscoverTopics.classList.remove('btn-success-glow');
+                btnDiscoverTopics.innerHTML = '<span class="btn-icon">🔎</span> AI 주제 12개 추천받기';
+            }, 2500);
         } catch (err) {
             showTopicCandidateMessage(`⚠️ 주제 수집 오류: ${err.message}`, 'error');
-        } finally {
+            if (topicDiscoveryStatusBadge) {
+                topicDiscoveryStatusBadge.textContent = '⚠️ 수집 실패';
+            }
             btnDiscoverTopics.disabled = false;
             btnDiscoverTopics.innerHTML = '<span class="btn-icon">🔎</span> AI 주제 12개 추천받기';
         }

@@ -72,13 +72,13 @@ def register_private_article(session: Session, article_input: StaticArticleInput
         body_html=article_input.body_html,
         tags_json=article_input.tags,
         category=article_input.category,
-        thumbnail_path=str(article_input.thumbnail_path),
+        thumbnail_path=str(article_input.thumbnail_path.resolve()),  # 절대 경로로 저장: 워커의 작업 디렉터리와 무관하게 찾는다
         content_hash=digest,
         status=ArticleStatus.READY_TO_PUBLISH,
     )
     session.add(version)
     session.flush()
-    session.add(MediaAsset(article_version_id=version.id, kind="THUMBNAIL", local_path=str(article_input.thumbnail_path)))
+    session.add(MediaAsset(article_version_id=version.id, kind="THUMBNAIL", local_path=str(article_input.thumbnail_path.resolve())))
     publish_job = PublishJob(
         article_version_id=version.id,
         target_blog_name=article_input.target_blog_name,
@@ -120,13 +120,13 @@ def register_draft_article(session: Session, article_input: DraftArticleInput) -
         body_html=article_input.body_html,
         tags_json=article_input.tags,
         category=article_input.category,
-        thumbnail_path=str(article_input.thumbnail_path),
+        thumbnail_path=str(article_input.thumbnail_path.resolve()),  # 절대 경로로 저장: 워커의 작업 디렉터리와 무관하게 찾는다
         content_hash=digest,
         status=ArticleStatus.DRAFT,
     )
     session.add(version)
     session.flush()
-    session.add(MediaAsset(article_version_id=version.id, kind="THUMBNAIL", local_path=str(article_input.thumbnail_path)))
+    session.add(MediaAsset(article_version_id=version.id, kind="THUMBNAIL", local_path=str(article_input.thumbnail_path.resolve())))
     session.flush()
     return RegisteredDraft(article.id, version.id)
 

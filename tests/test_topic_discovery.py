@@ -60,9 +60,9 @@ def test_discoverer_keeps_valid_unique_candidates_and_maps_citations() -> None:
         {"title": "뉴스 근거", "url": "https://news.example.com/topic"},
         {"title": "커뮤니티 근거", "url": "https://community.example.com/topic"},
     ]
-    assert client.completion_response.call_args.kwargs["search_recency_filter"] == "month"
+    assert client.completion_response.call_args.kwargs["search_recency_filter"] == "week"
     assert client.completion_response.call_args.kwargs["search_language_filter"] == ["ko"]
-    assert "practical household tips" in client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "loan regulations" in client.completion_response.call_args.kwargs["messages"][1]["content"]
     assert "정부지원·민원" in client.completion_response.call_args.kwargs["messages"][1]["content"]
 
 
@@ -84,9 +84,52 @@ def test_discoverer_supports_focus_sns_option() -> None:
     assert len(discovered) == 1
     system_prompt = client.completion_response.call_args.kwargs["messages"][0]["content"]
     user_prompt = client.completion_response.call_args.kwargs["messages"][1]["content"]
-    assert "EXCLUSIVELY" in system_prompt
-    assert "Search EXCLUSIVELY" in user_prompt
+    assert "online community discussions" in system_prompt or "online community" in user_prompt
     assert "DCInside" in user_prompt or "Clien" in user_prompt
+
+
+def test_discoverer_novelty_mode_uses_high_temperature_and_unique_prompt() -> None:
+    client = MagicMock()
+    client.completion_response.return_value = sonar_response(
+        [
+            {
+                "topic": "에어컨 실외기 셀프 청소로 전기세 30% 절약하는 법",
+                "category": "생활꿀팁",
+                "reason": "남들이 잘 모르는 틈새 절약 팁입니다.",
+                "citation_indices": [1],
+            }
+        ]
+    )
+
+    discovered = TopicDiscoverer(client).discover(novelty=True)
+
+    assert len(discovered) == 1
+    assert client.completion_response.call_args.kwargs["temperature"] == 0.9
+    user_prompt = client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "Make the topic titles extra intriguing" in user_prompt
+
+
+def test_discoverer_passes_existing_topics_exclusion_to_prompt() -> None:
+    client = MagicMock()
+    client.completion_response.return_value = sonar_response(
+        [
+            {
+                "topic": "새로운 독창적 주제",
+                "category": "생활꿀팁",
+                "reason": "기존 주제와 전혀 다릅니다.",
+                "citation_indices": [2],
+            }
+        ]
+    )
+
+    existing = ["정부지원 청년도약계좌 신청 방법", "여름 전기세 아끼는 팁"]
+    discovered = TopicDiscoverer(client).discover(existing_topics=existing)
+
+    assert len(discovered) == 1
+    user_prompt = client.completion_response.call_args.kwargs["messages"][1]["content"]
+    assert "avoid exact duplicate topics" in user_prompt
+    assert "정부지원 청년도약계좌 신청 방법" in user_prompt
+    assert "여름 전기세 아끼는 팁" in user_prompt
 
 
 def test_discoverer_rejects_empty_valid_result() -> None:
@@ -141,7 +184,7 @@ def test_completion_response_keeps_sonar_citations_and_search_results(mock_urlop
     ).encode("utf-8")
     mock_urlopen.return_value.__enter__.return_value = response
 
-    client = PerplexityClient(Settings(perplexity_api_key="pplx-valid-key"))
+    client = PerplexityClient(Settings(perplexity_api_key="pplx-valid-key", perplexity_api_mode="sonar"))
     completion = client.completion_response(
         messages=[{"role": "user", "content": "최근 한국 이슈"}],
         response_format={"type": "json_schema", "json_schema": {"schema": {"type": "object"}}},

@@ -40,7 +40,7 @@
             <header class="top-header">
                 <div class="header-title">
                     <h1>티스토리 포스팅 현황 및 컨트롤 타워</h1>
-                    <p class="subtitle">Perplexity Sonar LLM 포스팅 자동 생성 및 Playwright 발행 관리</p>
+                    <p class="subtitle">Perplexity Agent API 포스팅 자동 생성 및 Playwright 발행 관리</p>
                 </div>
                 <div class="header-actions">
                     <button id="btn-run-worker" class="btn btn-primary btn-glow">
@@ -84,8 +84,8 @@
             <!-- Quick AI Post Generator Section -->
             <section id="generate-section" class="card-section">
                 <div class="section-header">
-                    <h2>🤖 AI 포스팅 생성 (Perplexity Sonar)</h2>
-                    <span class="badge badge-ai" id="badge-model">Sonar Model</span>
+                    <h2>🤖 AI 포스팅 생성 (Perplexity Agent API)</h2>
+                    <span class="badge badge-ai" id="badge-model">Agent API</span>
                 </div>
                 <form id="form-generate-article" class="generator-form">
                     <div class="form-group flex-2">
@@ -117,13 +117,20 @@
             <section id="topic-candidates-section" class="card-section">
                 <div class="section-header">
                     <div>
-                        <h2>💡 AI 주제 추천</h2>
+                        <div class="title-with-badge">
+                            <h2>💡 AI 주제 추천</h2>
+                            <span id="topic-discovery-status-badge" class="topic-status-badge hidden"></span>
+                        </div>
                         <p class="subtitle">최근 뉴스·커뮤니티 근거로 최대 12개의 주제를 추천합니다.</p>
                     </div>
                     <div class="topic-discover-controls">
                         <label for="chk-focus-sns" class="topic-checkbox-label" title="뉴스 기사를 제외하고 오직 온라인 커뮤니티, 카페, SNS 및 포럼 이슈/후기에서만 수집">
                             <input type="checkbox" id="chk-focus-sns" class="form-checkbox">
                             <span>🔥 커뮤니티&SNS 전용</span>
+                        </label>
+                        <label for="chk-focus-novelty" class="topic-checkbox-label" title="뻔한 기본 가이드를 제외하고 남들이 잘 모르는 이색 꿀팁, 숨은 혜택, 참신한 틈새 이슈 위주로 수집">
+                            <input type="checkbox" id="chk-focus-novelty" class="form-checkbox">
+                            <span>✨ 참신·이색 주제</span>
                         </label>
                         <button id="btn-discover-topics" class="btn btn-primary">
                             <span class="btn-icon">🔎</span> AI 주제 12개 추천받기
@@ -178,7 +185,8 @@
             </div>
             <div class="modal-body">
                 <div class="meta-tags-container" id="modal-tags"></div>
-                <div class="html-preview-frame" id="modal-html-content"></div>
+                <!-- 본문 HTML은 모델이 만든 값이라 신뢰하지 않는다: 스크립트·same-origin을 모두 막은 sandbox iframe에서만 렌더링한다(allow-* 금지) -->
+                <iframe class="html-preview-frame" id="modal-html-content" title="포스팅 HTML 본문 미리보기" sandbox="" referrerpolicy="no-referrer"></iframe>
             </div>
         </div>
     </div>

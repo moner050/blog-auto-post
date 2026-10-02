@@ -164,8 +164,11 @@ def test_discover_and_list_topic_candidates_api(client):
         mock_instance.discover.return_value = candidates
         mock_discoverer_class.return_value = mock_instance
 
-        response = client.post("/api/topic-candidates/discover", json={"focus_sns": True})
-        mock_instance.discover.assert_called_once_with(focus_sns=True)
+        response = client.post("/api/topic-candidates/discover", json={"focus_sns": True, "novelty": True})
+        call_kwargs = mock_instance.discover.call_args.kwargs
+        assert call_kwargs["focus_sns"] is True
+        assert call_kwargs["novelty"] is True
+        assert isinstance(call_kwargs["existing_topics"], list)
 
     assert response.status_code == 200
     data = response.json()
