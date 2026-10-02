@@ -36,6 +36,12 @@ _SPACES = re.compile(r"\s+")
 _CODE_BLOCKS = re.compile(r"<(pre|code)\b[^>]*>.*?</\1>", re.DOTALL)
 _MARKDOWN_LEFTOVER = re.compile(r"\*\*[^*\n]{1,80}\*\*|```|>\s*#{2,6}\s+\S")
 _DATE_HINT = re.compile(r"\d{4}년|\d{1,2}월\s*(?:\d{1,2}일\s*)?기준|기준으로")
+# 애드센스 정책 위반(광고 클릭 유도). 한 번만 나와도 광고 게재 제한·계정 정지 사유가 되므로 재작성 대상이다. 공백을 뺀 글에서 찾는다.
+_AD_CLICK_INDUCEMENT = re.compile(
+    r"(?:광고|배너|스폰서)(?:를|을)?(?:한번|한번씩|꼭|많이)?(?:클릭|터치)?(?:해|눌러)(?:주세요|주시면|주시는|주실|보세요|부탁)"
+    r"|(?:아래|위|하단|상단|옆)(?:의)?(?:광고|배너)(?:에서|를|을|도)"
+    r"|광고(?:수익|클릭)[가-힣]{0,4}?(?:도움|응원|후원|부탁)"
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +108,16 @@ def validate_article(
         )
     if _MARKDOWN_LEFTOVER.search(_CODE_BLOCKS.sub("", body.html)):
         issues.append(Issue("markdown.leftover", ERROR, "마크다운 기호(**굵게**, ```, ## 등)가 본문에 그대로 남아 있다. HTML 태그로 바꾼다."))
+    inducement = _AD_CLICK_INDUCEMENT.search(_SPACES.sub("", text))
+    if inducement:
+        issues.append(
+            Issue(
+                "policy.ad_click_inducement",
+                ERROR,
+                f"광고 클릭을 유도하거나 광고를 가리키는 문장이 있다('{inducement.group()[:20]}'). 애드센스 정책 위반이므로 "
+                "그 문장을 빼고, 행동 안내는 공식 기관 누리집·대표번호로만 한다.",
+            )
+        )
     _check_structure(issues, body, profile)
     _check_meta(issues, summary, tags, text, profile)
     return issues
@@ -199,8 +215,10 @@ def _check_body_length(issues: list[Issue], length: int, profile: StyleProfile) 
 def _check_structure(issues: list[Issue], body: SanitizedHtml, profile: StyleProfile) -> None:
     if profile.blueprint in ("comparison", "concept_comparison") and body.table_count == 0:
         issues.append(Issue("structure.table_missing", WARN, "비교하는 글인데 표가 없다. 비교 기준을 표(<table>)로 정리한다."))
-    if profile.blueprint in ("how_to", "implementation_howto") and body.ol_count == 0:
+    if profile.blueprint in ("how_to", "implementation_howto", "commercial_solution") and body.ol_count == 0:
         issues.append(Issue("structure.steps_missing", WARN, "절차를 번호 목록(<ol>)으로 정리한다."))
+    if profile.blueprint == "commercial_solution" and body.table_count == 0:
+        issues.append(Issue("structure.table_missing", WARN, "자격 조건·기한·비용 같은 핵심 기준을 표(<table>)로 정리한다."))
 
 
 def _check_meta(issues: list[Issue], summary: str, tags: list[str], text: str, profile: StyleProfile) -> None:

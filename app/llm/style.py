@@ -71,6 +71,8 @@ _BLUEPRINT_RULES: dict[str, tuple[tuple[str, re.Pattern[str]], ...]] = {
     ),
 }
 _DEFAULT_BLUEPRINT = {LIFESTYLE: "how_to", TECHNICAL: "concept_definition"}
+# 고단가(법률·금융·보험·세금 등) 카테고리 글이 쓰는 구조. 어떤 카테고리가 해당하는지는 YAML의 content_routing.commercial_categories가 정한다.
+COMMERCIAL_BLUEPRINT = "commercial_solution"
 
 SECTION_LABELS = {
     "reader_problem": "독자가 겪는 문제 공감",
@@ -134,6 +136,12 @@ SECTION_LABELS = {
     "minimal_reproduction": "최소 재현",
     "fix_by_cause": "원인별 해결",
     "regression_check": "재발 확인",
+    "core_facts_and_regulations": "핵심 기준·자격 조건(표로 정리)",
+    "deadline_and_risks": "기한·놓치면 생기는 불이익(확인된 것만)",
+    "documents_and_costs": "필요 서류·예상 비용(확인된 것만)",
+    "official_free_help": "공공 무료 상담·조회 창구(대표번호·누리집)",
+    "expert_consultation_criteria": "전문가 상담이 필요한 경우와 업체·상품 비교 기준",
+    "faq": "자주 묻는 질문(<h3> 질문 3~5개와 짧은 답)",
 }
 BLUEPRINT_LABELS = {
     "how_to": "방법 안내형",
@@ -144,6 +152,7 @@ BLUEPRINT_LABELS = {
     "concept_comparison": "개념 비교형",
     "implementation_howto": "구현 방법형",
     "debugging": "디버깅형",
+    "commercial_solution": "문제 해결·행동 안내형",
 }
 _MUST_NOT_SOUND_LIKE = {
     "unverified_expert_authority": "검증되지 않은 전문가 행세",
@@ -272,6 +281,8 @@ def load_style_profile(
         return _builtin_profile(route_blueprint(topic, LIFESTYLE), error, title_style)
 
     blueprint = route_blueprint(topic, chosen_mode)
+    if chosen_mode == LIFESTYLE and _is_commercial_category(rules, category):
+        blueprint = COMMERCIAL_BLUEPRINT
     if blueprint not in _dig(rules, "modes", chosen_mode, "article_blueprints", default={}):
         blueprint = _DEFAULT_BLUEPRINT[chosen_mode]
     try:
@@ -281,6 +292,14 @@ def load_style_profile(
         reason = f"스타일 규칙의 형식이 올바르지 않습니다({type(error).__name__}: {error})."
         log_event(_logger, "style_rules_fallback", path=str(path), reason=reason)
         return _builtin_profile(route_blueprint(topic, LIFESTYLE), reason, title_style)
+
+
+def _is_commercial_category(rules: dict[str, Any], category: str | None) -> bool:
+    """카테고리가 YAML content_routing.commercial_categories 중 하나인가(공백 차이는 무시)."""
+    if not category:
+        return False
+    wanted = re.sub(r"\s+", "", category)
+    return any(re.sub(r"\s+", "", item) == wanted for item in _string_list(_dig(rules, "content_routing", "commercial_categories")))
 
 
 def _read_rules(path: Path) -> tuple[dict[str, Any] | None, str]:

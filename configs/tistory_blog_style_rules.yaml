@@ -49,6 +49,15 @@ content_routing:
       - cost_saving
       - seasonal_life_tip
       - daily_safety
+  # 이 카테고리의 생활 글은 주제 문구와 관계없이 commercial_solution 구조로 쓴다(app/topics/discovery.py ALLOWED_CATEGORIES와 맞춘다).
+  commercial_categories:
+    - "법률·합의·분쟁"
+    - "대출·부채·금융"
+    - "보험·보상·청구"
+    - "세금·환급·절세"
+    - "주식·코인·투자"
+    - "차량·리스·렌트"
+    - "여행·특가·예약"
   boundary_examples:
     "정부24 API 연동 방법": technical
     "정부24 주민등록등본 발급 방법": lifestyle
@@ -153,20 +162,24 @@ modes:
         - "이제 상황별로 나눠 보겠습니다."
       closing:
         - "핵심은 {key_point}를 먼저 확인하는 것입니다."
-        - "혼자 짐작으로 넘기지 마시고, 공식 조회기나 전문가 1차 무료 상담을 통해 정확한 조건을 먼저 확인해 보세요."
-        - "기한이 지나면 혜택을 놓치거나 손해를 볼 수 있으니 오늘 안내해 드린 서류부터 챙겨두시길 권합니다."
+        - "혼자 짐작으로 넘기지 마시고, {official_channel}에서 내 조건을 먼저 확인해 보세요."
+        - "{deadline}이 지나면 {loss}가 생길 수 있으니 오늘 정리한 서류부터 챙겨 두시길 권합니다."
         - "오늘 정리한 순서대로 확인하시면 어렵지 않게 처리할 수 있어요."
         - "실제 메뉴나 조건은 변경될 수 있으니 공식 안내도 함께 확인해 주세요."
 
     article_blueprints:
+      # 고단가 카테고리용: 앞 절반은 기준·조건(지식), 뒤 절반은 절차·서류·상담 창구(행동). 소제목 수 제한에 맞게 합칠 수 있다.
       commercial_solution:
         sections:
           - reader_problem
+          - early_conclusion
           - core_facts_and_regulations
-          - damage_risks_if_mishandled
-          - expert_consultation_and_platform_guide
-          - practical_comparison_table
-          - action_checklist_and_cta
+          - deadline_and_risks
+          - numbered_steps
+          - documents_and_costs
+          - official_free_help
+          - expert_consultation_criteria
+          - faq
           - summary
       how_to:
         sections:
@@ -574,6 +587,11 @@ restricted_expressions:
       - "지금 안 보면 손해"
       - "이것만 하면 끝"
       - "100% 해결"
+      - "수익 보장"
+      - "승소 보장"
+      - "100% 승인"
+      - "무조건 승인"
+      - "누구나 승인"
   technical:
     max_total_per_article: 0
     items:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -8,8 +8,10 @@ from sqlalchemy.orm import Session
 from app.content.internal_links import (
     attach_internal_links_to_body,
     get_internal_links_for_category,
+    insert_before_footer,
     render_internal_links_block,
 )
+from app.llm.sources import render_footer, strip_footer
 from app.db.models import (
     Article,
     ArticleStatus,
@@ -147,14 +149,18 @@ def test_get_internal_links_category_prioritization(memory_db_session: Session) 
     assert links[0]["title"] == "음주운전 면허취소 구제 가이드"
     assert links[1]["title"] == "교통사고 형사합의 절차 1단계"
 
-    # 검증 2: 동일 카테고리 글 부족 시 다른 카테고리 보충 (limit=3)
+    # 검증 2: 동일 카테고리 글 부족 시, 주제가 겹치는(태그·제목 키워드) 다른 카테고리 글로만 보충 (limit=3)
     links_3 = get_internal_links_for_category(
-        memory_db_session, category="법률·합의·분쟁", limit=3
+        memory_db_session, category="법률·합의·분쟁", limit=3, tags=["보험금 청구"]
     )
     assert len(links_3) == 3
     assert links_3[0]["title"] == "음주운전 면허취소 구제 가이드"
     assert links_3[1]["title"] == "교통사고 형사합의 절차 1단계"
     assert links_3[2]["title"] == "실손보험 도수치료 청구 팁"
+
+    # 검증 2-1: 겹치는 주제가 없으면 다른 카테고리 글을 섞지 않는다(토픽 클러스터 신호 보존)
+    unrelated = get_internal_links_for_category(memory_db_session, category="법률·합의·분쟁", limit=3)
+    assert [link["title"] for link in unrelated] == ["음주운전 면허취소 구제 가이드", "교통사고 형사합의 절차 1단계"]
 
     # 검증 3: exclude_title 지정 시 자기 자신 제외
     links_ex = get_internal_links_for_category(
@@ -162,6 +168,7 @@ def test_get_internal_links_category_prioritization(memory_db_session: Session) 
         category="법률·합의·분쟁",
         exclude_title="음주운전 면허취소 구제 가이드",
         limit=2,
+        tags=["청구"],
     )
     assert len(links_ex) == 2
     assert links_ex[0]["title"] == "교통사고 형사합의 절차 1단계"
@@ -191,9 +198,70 @@ def test_attach_internal_links_to_body(memory_db_session: Session) -> None:
         datetime(2026, 1, 1, tzinfo=timezone.utc),
     )
     attached = attach_internal_links_to_body(
-        body, memory_db_session, category="법률·합의·분쟁"
+        body, memory_db_session, category="법률·합의·분쟁", require_public=False
     )
     assert attached.startswith(body)
     assert "<blockquote>" in attached
     assert "교통사고 합의 요령" in attached
     assert "https://blog.tistory.com/100" in attached
+
+
+def test_attach_links_only_public_posts_by_default(memory_db_session: Session) -> None:
+    # 발행기는 비공개로만 올리므로, 기본값은 비로그인으로 열리는 글만 연결한다.
+    body = "<p>본문</p>"
+    for number, title in ((1, "공개로 바꾼 글"), (2, "아직 비공개인 글")):
+        _create_mock_post(
+            memory_db_session, number, number, number, title, "법률·합의·분쟁",
+            PublishStatus.VERIFIED, f"https://blog.tistory.com/{number}",
+            datetime(2026, 1, number, tzinfo=timezone.utc),
+        )
+    checked: list[str] = []
+
+    def is_public(url: str) -> bool:
+        checked.append(url)
+        return url.endswith("/1")
+
+    attached = attach_internal_links_to_body(body, memory_db_session, category="법률·합의·분쟁", is_public=is_public)
+
+    assert "공개로 바꾼 글" in attached and "아직 비공개인 글" not in attached
+    assert set(checked) == {"https://blog.tistory.com/1", "https://blog.tistory.com/2"}
+    # 공개 여부를 증명하지 못하면(테스트 환경은 외부 접속이 막혀 있다) 링크를 넣지 않고 본문을 그대로 둔다.
+    assert attach_internal_links_to_body(body, memory_db_session, category="법률·합의·분쟁") == body
+
+
+def test_same_category_links_are_ranked_by_topic_overlap(memory_db_session: Session) -> None:
+    _create_mock_post(
+        memory_db_session, 1, 1, 1, "개인회생 신청 자격과 필요 서류", "대출·부채·금융",
+        PublishStatus.VERIFIED, "https://blog.tistory.com/1", datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    _create_mock_post(
+        memory_db_session, 2, 2, 2, "전세대출 금리 비교", "대출·부채·금융",
+        PublishStatus.VERIFIED, "https://blog.tistory.com/2", datetime(2026, 1, 2, tzinfo=timezone.utc),
+    )
+
+    links = get_internal_links_for_category(
+        memory_db_session, category="대출·부채·금융", exclude_title="개인회생 기각 사유", tags=["개인회생"], limit=2
+    )
+
+    # 최신 글보다 주제가 겹치는 글이 먼저 온다
+    assert [link["title"] for link in links] == ["개인회생 신청 자격과 필요 서류", "전세대출 금리 비교"]
+
+
+def test_links_block_goes_before_the_generated_footer(memory_db_session: Session) -> None:
+    footer = render_footer([], date(2026, 10, 2), "lifestyle")
+    body = f"<h2>본문 소제목</h2>\n<p>내용</p>\n\n{footer}"
+    _create_mock_post(
+        memory_db_session, 1, 1, 1, "관련 글", "법률·합의·분쟁",
+        PublishStatus.VERIFIED, "https://blog.tistory.com/1", datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+
+    attached = attach_internal_links_to_body(body, memory_db_session, category="법률·합의·분쟁", require_public=False)
+
+    assert attached.index("<blockquote>") < attached.index("<p>※")
+    assert attached.rstrip().endswith(footer.rstrip())
+    # 글 점검(audit)이 쓰는 strip_footer가 여전히 꼬리를 찾는다
+    assert "<p>※" not in strip_footer(attached)
+
+
+def test_insert_before_footer_without_footer_appends() -> None:
+    assert insert_before_footer("<p>a</p>\n", "<blockquote>b</blockquote>") == "<p>a</p>\n\n<blockquote>b</blockquote>"

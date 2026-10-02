@@ -71,10 +71,22 @@ RANDOM_SEARCH_ANGLES = [
     "health insurance claim refusals, car accident fault dispute settlements, and loss adjuster compensation tips",
     "refinancing low-interest loan comparison, DSR loan regulations, debt consolidation, and credit recovery",
     "comprehensive income tax return refund hacks, real estate capital gains tax-saving tips, and hidden tax refunds",
-    "US stock ETF dividend investing strategies, Bitcoin/crypto market trends, cryptocurrency exchange fee comparisons, and IPO subscription tips",
+    "ISA/pension savings/IRP tax benefits, overseas stock capital gains tax filing, brokerage and crypto exchange fee comparisons, virtual asset tax rules, and IPO subscription tips",
     "long-term car rental vs lease quotation comparisons, used car inspection cautions, and vehicle repair cost reduction",
     "budget airline ticket booking hacks, hotel OTA discount promo codes, and currency exchange travel card benefits",
 ]
+
+
+# 광고 단가는 '지금 행동하거나 결정해야 하는' 검색어에서 높고, 하루짜리 화제는 검색이 금방 끊긴다.
+# 가격 예측·수익 보장·특정 업체 지명 주제는 YMYL 신뢰 기준과 광고 정책에 걸리기 쉬워 피한다.
+COMMERCIAL_INTENT_GUIDE = (
+    "Prefer topics with clear search intent that people type into Google/Naver/Daum when they must act or decide: "
+    "eligibility, how to apply or check, calculation, comparison, required documents, deadlines, and what to do after a refusal "
+    "(e.g. '신청 자격', '조회 방법', '계산법', '비교', '필요 서류', '신청 기한', '거절 시 대처법'). "
+    "Prefer issues that people will still search for months later over one-day gossip. "
+    "Avoid topics that predict the price of a specific stock or coin, promise guaranteed returns, approval or winning a case, "
+    "or recommend a specific private law firm, broker or company. "
+)
 
 
 class TopicDiscoveryError(ValueError):
@@ -185,6 +197,8 @@ def _build_messages(
             "income tax refunds & tax reduction (세금·환급·절세), stock dividend & crypto trading tips (주식·코인·투자), "
             "car rental/lease quotes & inspection (차량·리스·렌트), and flight/hotel reservation discounts (여행·특가·예약). "
         )
+
+    user_prompt += COMMERCIAL_INTENT_GUIDE
 
     if novelty:
         user_prompt += (

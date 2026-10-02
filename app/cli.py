@@ -196,6 +196,9 @@ def main() -> None:
                 session=session,
                 category=target_category,
                 exclude_title=generated.title,
+                limit=settings.internal_links_limit,
+                tags=generated.tags,
+                require_public=settings.internal_links_require_public,
             )
             registered = register_private_article(
                 session,

@@ -507,6 +507,9 @@ def generate_topic_candidate_article(candidate_id: int) -> dict[str, Any]:
                 session=session,
                 category=current.category,
                 exclude_title=generated.title,
+                limit=settings.internal_links_limit,
+                tags=generated.tags,
+                require_public=settings.internal_links_require_public,
             )
             registered = register_private_article(
                 session,
@@ -750,6 +753,9 @@ def generate_article_endpoint(payload: GenerateArticleRequest) -> dict[str, Any]
                 session=session,
                 category=target_category,
                 exclude_title=generated.title,
+                limit=settings.internal_links_limit,
+                tags=generated.tags,
+                require_public=settings.internal_links_require_public,
             )
             registered = register_private_article(
                 session,

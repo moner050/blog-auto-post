@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     article_style_rules_path: Path = Path("configs/tistory_blog_style_rules.yaml")
     # clickbait: 주제 탐색의 어그로·고CTR 지향을 글 제목에도 적용 / persona: 스타일 규칙 YAML의 차분한 제목 규칙
     article_title_style: Literal["clickbait", "persona"] = "clickbait"
+    # 내부 링크(관련 추천 글): 발행기는 비공개로만 올리므로, 기본값은 비로그인 요청에 200이 오는(공개 전환된) 글만 연결한다.
+    internal_links_require_public: bool = True
+    internal_links_limit: int = Field(default=3, ge=0, le=6)
 
     @model_validator(mode="after")
     def assemble_database_url(self) -> Settings:
